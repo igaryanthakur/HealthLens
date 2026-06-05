@@ -1,0 +1,61 @@
+const path = require("path");
+const {
+  cleanupTextFull,
+  cleanupTextClinical,
+} = require("../utils/textCleanup");
+const { extractTextFromPdf } = require("./pdfService");
+const { extractTextFromImage } = require("./ocrService");
+const { filterClinicalData } = require("./clinicalFilterService");
+const { stitchRows } = require("../utils/rowStitcher");
+const { extractSections } = require("./sectionExtractor");
+
+async function extractMedicalReportText(filePath) {
+  const extension = path.extname(filePath).toLowerCase();
+  let methodUsed = "unknown";
+  let rawText = "";
+  let ocrPages = [];
+
+  if (extension === ".pdf") {
+    const result = await extractTextFromPdf(filePath);
+    methodUsed = result.methodUsed;
+    rawText = result.rawText;
+    ocrPages = result.ocrPages || [];
+  } else if ([".jpg", ".jpeg", ".png"].includes(extension)) {
+    methodUsed = "image-ocr";
+    const result = await extractTextFromImage(filePath);
+    rawText = result.rawText;
+    ocrPages = result.ocrPages || [];
+  } else {
+    throw new Error("Unsupported file type for extraction.");
+  }
+
+  const cleanedTextFull = cleanupTextFull(rawText);
+  const cleanedTextClinicalSeed = cleanupTextClinical(cleanedTextFull);
+  const clinicalLines = (cleanedTextClinicalSeed || cleanedTextFull)
+    .split("\n")
+    .map((line) => line.trim())
+    .filter(Boolean);
+  const allWords = ocrPages.flatMap((page) => page.words || []);
+  const stitchedRows = stitchRows(clinicalLines, allWords);
+  const sections = extractSections(stitchedRows);
+  const { cleanedTextClinical, structured } = filterClinicalData(
+    cleanedTextFull,
+    {
+      ocrPages,
+      stitchedRows,
+      sections,
+    },
+  );
+
+  return {
+    methodUsed,
+    cleanedText: cleanedTextFull,
+    cleanedTextFull,
+    cleanedTextClinical,
+    structured,
+  };
+}
+
+module.exports = {
+  extractMedicalReportText,
+};

@@ -1,0 +1,139 @@
+{
+  "hemoglobin": {
+    "id": "cbc_hemoglobin",
+    "aliases": ["hb", "hb.", "haemoglobin", "hemoglobin"],
+    "category": "CBC",
+    "priority": "critical"
+  },
+  "rbc": {
+    "id": "cbc_rbc",
+    "aliases": ["red blood cell"],
+    "category": "CBC",
+    "priority": "high"
+  },
+  "wbc": {
+    "id": "cbc_wbc",
+    "aliases": ["tlc", "total leucocyte count"],
+    "category": "CBC",
+    "priority": "high"
+  },
+  "platelets": {
+    "id": "cbc_platelets",
+    "aliases": ["platelet", "platelet count"],
+    "category": "CBC",
+    "priority": "critical"
+  },
+  "pcv": {
+    "id": "cbc_pcv",
+    "aliases": ["hematocrit"],
+    "category": "CBC",
+    "priority": "medium"
+  },
+  "mcv": { "id": "cbc_mcv", "aliases": [], "category": "CBC", "priority": "low" },
+  "mch": { "id": "cbc_mch", "aliases": [], "category": "CBC", "priority": "low" },
+  "mchc": { "id": "cbc_mchc", "aliases": [], "category": "CBC", "priority": "low" },
+  "rdw": { "id": "cbc_rdw", "aliases": [], "category": "CBC", "priority": "low" },
+  "anc": {
+    "id": "cbc_anc",
+    "aliases": ["absolute neutrophil count"],
+    "category": "CBC",
+    "priority": "high"
+  },
+  "hba1c": {
+    "id": "diabetes_hba1c",
+    "aliases": ["hb a1c", "glycosylated hemoglobin"],
+    "category": "Diabetes",
+    "priority": "critical"
+  },
+  "glucose": {
+    "id": "diabetes_glucose",
+    "aliases": ["random glucose", "fasting glucose", "glucose random"],
+    "category": "Diabetes",
+    "priority": "critical"
+  },
+  "total cholesterol": {
+    "id": "lipid_total_cholesterol",
+    "aliases": ["cholesterol total"],
+    "category": "Lipid",
+    "priority": "high"
+  },
+  "triglycerides": {
+    "id": "lipid_triglycerides",
+    "aliases": ["tg"],
+    "category": "Lipid",
+    "priority": "high"
+  },
+  "hdl": { "id": "lipid_hdl", "aliases": [], "category": "Lipid", "priority": "medium" },
+  "ldl": { "id": "lipid_ldl", "aliases": [], "category": "Lipid", "priority": "medium" },
+  "vldl": { "id": "lipid_vldl", "aliases": [], "category": "Lipid", "priority": "low" },
+  "creatinine": {
+    "id": "kidney_creatinine",
+    "aliases": [],
+    "category": "Kidney",
+    "priority": "critical"
+  },
+  "urea": {
+    "id": "kidney_urea",
+    "aliases": ["blood urea", "bun"],
+    "category": "Kidney",
+    "priority": "high"
+  },
+  "egfr": { "id": "kidney_egfr", "aliases": ["gfr"], "category": "Kidney", "priority": "critical" },
+  "uric acid": { "id": "kidney_uric_acid", "aliases": [], "category": "Kidney", "priority": "medium" },
+  "bilirubin total": {
+    "id": "liver_bilirubin_total",
+    "aliases": ["serum bilirubin total", "bilirubin"],
+    "category": "Liver",
+    "priority": "high"
+  },
+  "ast": {
+    "id": "liver_ast",
+    "aliases": ["aspartate aminotransferase", "sgot"],
+    "category": "Liver",
+    "priority": "critical"
+  },
+  "alt": {
+    "id": "liver_alt",
+    "aliases": ["alanine aminotransferase", "sgpt", "alt/sgpt"],
+    "category": "Liver",
+    "priority": "critical"
+  },
+  "alp": {
+    "id": "liver_alp",
+    "aliases": ["alkaline phosphatase"],
+    "category": "Liver",
+    "priority": "high"
+  },
+  "ggt": {
+    "id": "liver_ggt",
+    "aliases": ["gamma glutamyl transferase"],
+    "category": "Liver",
+    "priority": "high"
+  },
+  "albumin": { "id": "liver_albumin", "aliases": [], "category": "Liver", "priority": "medium" },
+  "total protein": { "id": "liver_total_protein", "aliases": ["serum total protein"], "category": "Liver", "priority": "medium" },
+  "serum iron": { "id": "iron_serum_iron", "aliases": ["iron studies"], "category": "Iron", "priority": "high" },
+  "tibc": { "id": "iron_tibc", "aliases": [], "category": "Iron", "priority": "high" },
+  "uibc": { "id": "iron_uibc", "aliases": [], "category": "Iron", "priority": "medium" },
+  "transferrin saturation": {
+    "id": "iron_transferrin_saturation",
+    "aliases": [],
+    "category": "Iron",
+    "priority": "medium"
+  },
+  "vitamin d": {
+    "id": "vitamin_d",
+    "aliases": ["25-oh vitamin d", "25 oh vitamin d"],
+    "category": "Vitamins",
+    "priority": "critical"
+  },
+  "vitamin b12": { "id": "vitamin_b12", "aliases": [], "category": "Vitamins", "priority": "high" },
+  "tsh": {
+    "id": "thyroid_tsh",
+    "aliases": ["thyroid stimulating hormone"],
+    "category": "Thyroid",
+    "priority": "high"
+  },
+  "t3": { "id": "thyroid_t3", "aliases": ["tri-iodothyronine"], "category": "Thyroid", "priority": "medium" },
+  "t4": { "id": "thyroid_t4", "aliases": ["thyroxine"], "category": "Thyroid", "priority": "medium" }
+}
