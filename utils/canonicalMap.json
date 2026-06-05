@@ -7,13 +7,13 @@
   },
   "rbc": {
     "id": "cbc_rbc",
-    "aliases": ["red blood cell"],
+    "aliases": ["red blood cell", "r.b.c.", "red blood cell count"],
     "category": "CBC",
     "priority": "high"
   },
   "wbc": {
     "id": "cbc_wbc",
-    "aliases": ["tlc", "total leucocyte count"],
+    "aliases": ["tlc", "total leucocyte count", "total white blood cell count", "w.b.c."],
     "category": "CBC",
     "priority": "high"
   },
@@ -123,11 +123,16 @@
   },
   "vitamin d": {
     "id": "vitamin_d",
-    "aliases": ["25-oh vitamin d", "25 oh vitamin d"],
+    "aliases": ["25-oh vitamin d", "25 oh vitamin d", "25-oh", "25 oh"],
     "category": "Vitamins",
     "priority": "critical"
   },
-  "vitamin b12": { "id": "vitamin_b12", "aliases": [], "category": "Vitamins", "priority": "high" },
+  "vitamin b12": {
+    "id": "vitamin_b12",
+    "aliases": ["b12", "vit b12"],
+    "category": "Vitamins",
+    "priority": "high"
+  },
   "tsh": {
     "id": "thyroid_tsh",
     "aliases": ["thyroid stimulating hormone"],

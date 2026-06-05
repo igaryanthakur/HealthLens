@@ -1,8 +1,5 @@
 const path = require("path");
-const {
-  cleanupTextFull,
-  cleanupTextClinical,
-} = require("../utils/textCleanup");
+const { cleanupTextFull } = require("../utils/textCleanup");
 const { extractTextFromPdf } = require("./pdfService");
 const { extractTextFromImage } = require("./ocrService");
 const { filterClinicalData } = require("./clinicalFilterService");
@@ -30,13 +27,12 @@ async function extractMedicalReportText(filePath) {
   }
 
   const cleanedTextFull = cleanupTextFull(rawText);
-  const cleanedTextClinicalSeed = cleanupTextClinical(cleanedTextFull);
-  const clinicalLines = (cleanedTextClinicalSeed || cleanedTextFull)
+  const fullLines = cleanedTextFull
     .split("\n")
     .map((line) => line.trim())
     .filter(Boolean);
   const allWords = ocrPages.flatMap((page) => page.words || []);
-  const stitchedRows = stitchRows(clinicalLines, allWords);
+  const stitchedRows = stitchRows(fullLines, allWords);
   const sections = extractSections(stitchedRows);
   const { cleanedTextClinical, structured } = filterClinicalData(
     cleanedTextFull,

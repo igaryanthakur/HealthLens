@@ -7,13 +7,9 @@ const { extractSections } = require("../services/sectionExtractor");
 test("section-scoped extraction avoids hba1c leakage into cbc", () => {
   const sampleLines = [
     "Complete Blood Count",
-    "Haemoglobin (HB)",
-    "8.6 g/dL",
-    "12.0-15.0",
+    "Haemoglobin (HB) : 8.6 g/dL 12.0-15.0",
     "HbA1c Profile",
-    "HbA1c",
-    "6.8 %",
-    "4.2-5.7",
+    "HbA1c : 6.8 % 4.2-5.7",
   ];
 
   const stitchedRows = stitchRows(sampleLines, []);

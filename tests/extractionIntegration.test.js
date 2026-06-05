@@ -20,7 +20,7 @@ test("clinical filtering emits enriched measurement schema", () => {
     (m) => m.id === "cbc_hemoglobin",
   );
   assert.ok(hemoglobin);
+  assert.equal(hemoglobin.method, "generalized_stripper");
   assert.ok(typeof hemoglobin.normalizedValue === "number");
-  assert.ok(hemoglobin.method);
   assert.ok(hemoglobin.validation);
 });

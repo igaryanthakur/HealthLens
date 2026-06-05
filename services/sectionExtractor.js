@@ -1,5 +1,5 @@
 const HEADER_MAP = {
-  CBC: ["complete blood count", "cbc", "hemogram"],
+  CBC: ["complete blood count", "cbc", "hemogram", "haemogram"],
   LIVER: ["liver function", "liver function test", "lft"],
   LIPID: ["lipid profile", "cholesterol profile", "lipid"],
   KIDNEY: ["kidney function", "renal function", "rft"],
@@ -38,6 +38,14 @@ function detectHeaderSection(line = "") {
     return null;
   }
 
+  for (const [section, labels] of Object.entries(HEADER_MAP)) {
+    for (const label of labels) {
+      if (normalized.includes(label)) {
+        return section;
+      }
+    }
+  }
+
   const wordCount = normalized.split(" ").length;
   if (wordCount > 6) {
     return null;
@@ -47,9 +55,6 @@ function detectHeaderSection(line = "") {
   let bestScore = 0;
   for (const [section, labels] of Object.entries(HEADER_MAP)) {
     for (const label of labels) {
-      if (normalized.includes(label)) {
-        return section;
-      }
       const score = tokenOverlap(normalized, label);
       if (score >= 0.6 && score > bestScore) {
         best = section;

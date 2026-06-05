@@ -1,48 +1,20 @@
-function safeTrim(value) {
-  return value ? value.replace(/\s+/g, " ").trim() : null;
-}
+function extractMetadata(cleanedTextFull = "") {
+  const patientInfo = { reportDate: null };
 
-function normalizeGender(value) {
-  if (!value) {
-    return null;
-  }
-
-  const normalized = value.trim().toLowerCase();
-  if (normalized === "m") {
-    return "Male";
-  }
-  if (normalized === "f") {
-    return "Female";
-  }
-  if (normalized === "male" || normalized === "female" || normalized === "other") {
-    return normalized.charAt(0).toUpperCase() + normalized.slice(1);
-  }
-  return value.trim();
-}
-
-function extractMetadata(text = "") {
-  const patientNameMatch = text.match(/Patient\s+Name\s*[:\-]\s*([^\n\r]{1,80})/i);
-  const ageGenderMatch = text.match(
-    /Age\/Gender\s*[:\-]\s*([\dA-Za-z\s\-]+)\s*\/\s*(Female|Male|Other|F|M)/i
+  const dateMatch = cleanedTextFull.match(
+    /(?:date|collected on|generated on|report generated on|sample collection date|reg\.?\s*date|customer since).*?(\d{1,2}[/\-]\d{1,2}[/\-]\d{2,4}|\d{4}[/\-]\d{1,2}[/\-]\d{1,2}|\d{1,2}[/\-\s]+[a-zA-Z]{3}[/\-\s]+\d{4})/i,
   );
-  const reportDateMatch = text.match(
-    /(Report\s+Generated\s+On|Sample\s+Collection\s+Date)\s*[:\-]\s*([0-9]{1,2}\/[A-Za-z]{3}\/[0-9]{4}|[0-9]{1,2}\/[0-9]{1,2}\/[0-9]{2,4}|[0-9]{1,2}\s*[A-Za-z]{3}\s*[0-9]{4})/i
-  );
-  const labNameMatch = text.match(
-    /(?:Laboratory|Lab(?:oratory)?|Facility)\s*[:\-]\s*([A-Z0-9][\w\s&,'\-.]{2,120})/i
-  );
+  if (dateMatch) {
+    patientInfo.reportDate = dateMatch[1].trim();
+    return patientInfo;
+  }
 
-  return {
-    patientName:
-      safeTrim(patientNameMatch?.[1])?.replace(
-        /\b(Age\/Gender|Order Id|Sample Type|Barcode|Report Status)\b.*$/i,
-        ""
-      ) || null,
-    gender: normalizeGender(ageGenderMatch?.[2]) || null,
-    age: safeTrim(ageGenderMatch?.[1]) || null,
-    reportDate: safeTrim(reportDateMatch?.[2]) || null,
-    labName: safeTrim(labNameMatch?.[1]) || null,
-  };
+  const leadingDate = cleanedTextFull.match(/^(\d{1,2}\/\d{1,2}\/\d{4})/m);
+  if (leadingDate) {
+    patientInfo.reportDate = leadingDate[1];
+  }
+
+  return patientInfo;
 }
 
 module.exports = {

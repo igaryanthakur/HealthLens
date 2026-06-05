@@ -1,0 +1,30 @@
+---
+description: Keep PROJECT_CONTEXT.md in sync after code or plan changes
+alwaysApply: true
+---
+
+# PROJECT_CONTEXT.md maintenance
+
+After completing any plan, feature, bugfix, API change, test count change, or architectural refactor, update [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) as part of definition of done (alongside passing tests).
+
+## When to update
+
+- Plan implementation completed
+- New or changed API endpoints
+- Pipeline or extraction logic changes
+- Test baseline changes
+- New known bugs or resolved quirks
+- Day/status roadmap shifts (Done / In Progress / To Do)
+
+## What to update
+
+1. **Last Updated** date at the top
+2. **Changelog (recent)** — prepend 1–3 bullets for what changed
+3. Any affected sections: §2 endpoints, §4 status, §7 tests, §6 quirks, §5 milestones
+
+## Rules
+
+- Do not duplicate entire README; patch only changed sections
+- Skip update for trivial edits (typos, comments-only)
+- Preserve vision language: HealthLens is a **Personal Health Intelligence System**, not a "report summarizer"
+- Separate **shipped vs planned**: do not mark React, MongoDB, JWT, or Gemini as done until code exists in the repo

@@ -16,3 +16,15 @@ test("extracts CBC and LIPID sections from stitched rows", () => {
   assert.equal(sections[0].section, "CBC");
   assert.equal(sections[1].section, "LIPID");
 });
+
+test("detects CBC section from haemogram header", () => {
+  const rows = [
+    { text: "COMPLETE BLOOD COUNT (HAEMOGRAM)", sourceLines: [0] },
+    { text: "HAEMOGLOBIN (Hb) g/dl 11 - 16 : L 10.0 10.0", sourceLines: [1] },
+    { text: "R.B.C. (Red Blood Cell Count) mill/cu.mm 3.0 - 6.0 : 4.24", sourceLines: [2] },
+  ];
+
+  const sections = extractSections(rows);
+  assert.equal(sections.length, 1);
+  assert.equal(sections[0].section, "CBC");
+});

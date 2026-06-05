@@ -2,6 +2,11 @@
 
 This phase builds a backend-only Node.js service that accepts medical reports, extracts text locally, runs deterministic clinical filtering, and returns both traceable cleaned text and structured clinical measurements.
 
+## Project context
+
+For architecture, vision, milestone status, and agent onboarding, see [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).  
+This file is updated automatically after significant changes.
+
 ## Scope (This Phase)
 
 - Upload medical report files (`PDF`, `JPG`, `JPEG`, `PNG`)
@@ -9,11 +14,13 @@ This phase builds a backend-only Node.js service that accepts medical reports, e
 - Deterministic full cleanup (`cleanedTextFull`)
 - Clinically focused subset (`cleanedTextClinical`)
 - Structured JSON extraction (`structured.patient_info`, `structured.measurements`)
+- Canonical-alias range-stripping extractor (38 parameters from `canonicalMap.json`)
+- LLM-ready `aiPrompt` text generated from structured output
 - Deterministic status/priority assignment (range first, thresholds fallback)
 
 Not included in this phase:
 
-- AI analysis/summarization/recommendations
+- Live AI analysis/summarization (prompt is prepared; LLM call not wired)
 - MongoDB
 - Frontend
 
@@ -30,7 +37,7 @@ Not included in this phase:
 ## Project Structure
 
 - `server.js`
-- `routes/upload.js`
+- `routes/interpret.js`
 - `middleware/upload.js`
 - `services/extractionService.js`
 - `services/clinicalFilterService.js`
@@ -40,7 +47,8 @@ Not included in this phase:
 - `utils/clinical/metadataPrepass.js`
 - `utils/clinical/boilerplateRemoval.js`
 - `utils/clinical/candidateFilter.js`
-- `utils/clinical/parameterRegexMap.js`
+- `utils/clinical/parameterRegexMap.js` (canonical-alias range-stripping extractor)
+- `utils/aiContextGenerator.js`
 - `utils/clinical/referenceRangeParser.js`
 - `utils/clinical/statusPriorityEngine.js`
 - `utils/clinical/dedupeProvenance.js`
@@ -140,14 +148,10 @@ Expected response format:
   "extractionMethod": "pdf-parse",
   "cleanedText": "....",
   "cleanedTextFull": "....",
-  "cleanedTextClinical": "Hemoglobin: 8.6 g/dl | Ref: 12-16 | Status: low\nGlucose: 110 mg/dl | Ref: 70-140 | Status: normal",
+  "cleanedTextClinical": "Report Date: 2026-05-19\nhemoglobin: 8.6 g/dL | Ref: 12-16 | Status: low",
   "structured": {
     "patient_info": {
-      "patientName": "Anjana Thakur",
-      "gender": "Female",
-      "age": "46Y 2M 24D",
-      "reportDate": "25/Apr/2026",
-      "labName": null
+      "reportDate": "2026-05-19"
     },
     "reportType": "CBC",
     "measurements": [
@@ -163,7 +167,7 @@ Expected response format:
         "referenceRange": "12-16",
         "status": "low",
         "priority": "critical",
-        "method": "regex_exact",
+        "method": "generalized_stripper",
         "confidence": 0.96,
         "confidenceSource": "ocr",
         "validation": {
@@ -186,7 +190,9 @@ Expected response format:
 
 Notes:
 - `cleanedText` is kept temporarily for backward compatibility and mirrors `cleanedTextFull`.
-- `cleanedTextClinical` is intended as future LLM input.
+- `cleanedTextClinical` is intended as LLM input alongside the separate interpret endpoint.
+- `patient_info` contains only `reportDate` (supports `Customer Since: 25/Apr/2026` and similar formats).
+- Extraction uses `generalized_stripper`: canonical aliases + reference-range stripping + label masking (prevents false values from labels like `B12` or `25-OH`).
 - `sourcePage/sourceBBox` are usually available for OCR paths, and nullable for direct digital PDF parsing.
 
 Possible extraction methods:
@@ -195,17 +201,43 @@ Possible extraction methods:
 - `pdf-ocr-fallback` (scanned PDF fallback OCR)
 - `image-ocr` (uploaded image OCR)
 
+### Generate AI prompt (interpret)
+
+`POST /api/interpret`
+
+Accepts JSON body with the `structured` object returned from upload. Returns an LLM-ready prompt string. No external AI call is made in this phase.
+
+#### cURL
+
+```bash
+curl -X POST http://localhost:5000/api/interpret \
+  -H "Content-Type: application/json" \
+  -d '{"structured":{"reportType":"CBC","patient_info":{"reportDate":"2026-04-25"},"measurements":[]}}'
+```
+
+Example response:
+
+```json
+{
+  "success": true,
+  "aiPrompt": "MEDICAL REPORT CONTEXT:\n- Report Type: CBC\n..."
+}
+```
+
+Typical flow: upload a report with `POST /api/upload`, then pass the `structured` field to `POST /api/interpret` to obtain `aiPrompt`.
+
 ## Deterministic Clinical Filtering Rules
 
 The filtering pipeline:
 
-- extracts metadata first (`patientName`, `age`, `gender`, `reportDate`, `labName`)
+- extracts report date from common lab date formats (`DD/MM/YYYY`, `DD/MMM/YYYY`, keyword-prefixed dates)
 - removes boilerplate lines (`Booking ID`, machine/method lines, page markers, advisory/marketing text)
 - removes obvious OCR noise and repeated headers/footers
 - keeps only clinical candidate lines (measurement + metadata signal)
-- extracts rubric measurements with regex (CBC, Diabetes, Lipid, Kidney, Liver, Iron, Vitamins, Thyroid)
+- extracts rubric measurements via canonical-alias range-stripping (CBC, Diabetes, Lipid, Kidney, Liver, Iron, Vitamins, Thyroid)
 - parses reference ranges and assigns deterministic status/priority
 - deduplicates repeated measurements while preserving source trace
+- generates `aiPrompt` via separate `POST /api/interpret` (no live LLM call yet)
 
 ## Verification Checklist
 

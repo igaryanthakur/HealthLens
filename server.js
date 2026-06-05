@@ -3,6 +3,7 @@ require("dotenv").config();
 const express = require("express");
 const multer = require("multer");
 const uploadRouter = require("./routes/upload");
+const interpretRouter = require("./routes/interpret");
 const logger = require("./utils/logger");
 
 const app = express();
@@ -19,6 +20,7 @@ app.get("/health", (_req, res) => {
 });
 
 app.use("/api/upload", uploadRouter);
+app.use("/api/interpret", interpretRouter);
 
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
