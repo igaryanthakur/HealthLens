@@ -21,7 +21,9 @@ This file is updated automatically after significant changes.
 
 Not included in this phase:
 - MongoDB
-- Frontend
+
+Frontend:
+- `client/` — Vite + React on port 5173, Tailwind v3 (Vitality Core design tokens), upload → AI dashboard flow, dev proxy to backend `/api`
 
 ## Tech Stack
 
@@ -92,6 +94,19 @@ npm start
 ```
 
 Server default: `http://localhost:5000`
+
+### Frontend (React scaffold)
+
+From the repo root:
+
+```bash
+cd client
+npm install
+npm run dev
+```
+
+Frontend default: `http://localhost:5173`  
+API calls from the React app use relative `/api/*` paths; Vite proxies them to `http://localhost:5000` (start the backend first).
 
 ## Environment Variables
 

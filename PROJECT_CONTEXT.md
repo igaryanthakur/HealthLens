@@ -1,7 +1,7 @@
 # HealthLens AI — Project Context
 
-**Last Updated:** Saturday, June 6, 2026  
-**Status:** Day 3 / 6 (AI Interpretation Layer Done — Day 4 React UI Next)
+**Last Updated:** Sunday, June 7, 2026  
+**Status:** Day 4 / 6 (Upload + Dashboard UI Done — Charts & Polish Next)
 
 ---
 
@@ -34,14 +34,15 @@ It is a web-based platform that helps patients understand, organize, and analyze
 | OCR & Extraction | PDF.js (`pdf-parse`), Tesseract.js, `sharp` |
 | AI | Google Gemini API (`gemini-1.5-flash`) |
 
-### Currently in repo (MVP — Day 1–3)
+### Currently in repo (MVP — Day 1–4)
 
-- **Backend only:** Node.js + Express 5 (CommonJS)
-- **No MongoDB, no JWT, no React app** yet
+- **Backend:** Node.js + Express 5 (CommonJS) on port 5000
+- **React frontend:** [`client/`](client/) — Vite + React, Tailwind CSS v3 (Vitality Core tokens), lucide-react, recharts; upload → interpret → dashboard flow; dev proxy `/api` → `localhost:5000`
+- **No MongoDB, no JWT** yet
 - **Local extraction:** `pdf-parse`, `pdfjs-dist`, `@napi-rs/canvas`, `tesseract.js`, `sharp`
 - **Manual UI:** [`index.html`](index.html) — browser upload tester (fetch → `POST /api/upload`)
 - **Workspace:** `c:\Users\aryan\Downloads\College\Projects\HealthLens AI`
-- **Commands:** `npm install` · `npm run dev` (port 5000) · `npm test`
+- **Commands:** `npm install` · `npm run dev` (backend, port 5000) · `cd client && npm run dev` (frontend, port 5173) · `npm test`
 
 ### Core endpoints (current)
 
@@ -51,7 +52,7 @@ It is a web-based platform that helps patients understand, organize, and analyze
 | `POST /api/upload` | Live | Multer upload (`report` field). Deterministic OCR/extraction. Returns `structured` JSON + cleaned text fields |
 | `POST /api/interpret` | Live | Accepts `{ structured }`. Builds prompt via [`utils/aiContextGenerator.js`](utils/aiContextGenerator.js), calls Gemini via [`services/aiService.js`](services/aiService.js). Returns `{ success, aiPrompt, data }` where `data` is `{ summary, findings, recommendations }` |
 
-**Typical flow:** Upload → copy `structured` → call `/api/interpret` → receive `data` for UI (and `aiPrompt` for debugging).
+**Typical flow:** React app uploads report → `POST /api/upload` → `POST /api/interpret` → dashboard renders `data` + `structured.measurements`. Manual/debug: copy `structured` from upload and call interpret directly.
 
 **Env:** `GEMINI_API_KEY` required for interpret (documented in `.env.example`).
 
@@ -111,9 +112,16 @@ flowchart TD
 - **Env:** `GEMINI_API_KEY` in `.env.example`
 - **Tests:** **37/37 passing**
 
-### TO DO (Days 4–6)
+### DONE (Day 4 — core UI)
 
-- **Day 4:** React upload UI & dashboard (cards, radial charts, color system)
+- **React scaffold:** [`client/`](client/) Vitality Core design system (Tailwind v3, Inter, `glass-card`, `shadow-ambient`)
+- **Upload flow:** `UploadZone` → `ProcessingView` → `Dashboard` state machine in [`client/src/App.jsx`](client/src/App.jsx)
+- **API wiring:** chained `/api/upload` + `/api/interpret` via [`client/src/lib/api.js`](client/src/lib/api.js)
+- **Dashboard:** `AISummaryCard` (summary + recommendations), `BiomarkerGrid` (status-driven measurement cards)
+
+### TO DO (Day 4 polish + Days 5–6)
+
+- **Day 4 remaining:** Radial charts (recharts), findings display, reset/new-report action
 - **Day 5:** Health score engine, risk detection, trend DB (MongoDB)
 - **Day 6:** Production polish — error handling, PDF export, branding
 
@@ -170,11 +178,14 @@ flowchart TD
 | AI interpretation | `services/aiService.js` |
 | Enrichment | `unitNormalizer.js`, `validationSanityEngine.js`, `reportClassifier.js`, `clinicalFlags.js`, `traceability.js` |
 | Manual UI | `index.html` |
+| React frontend | `client/src/App.jsx`, `client/src/lib/api.js`, `client/src/components/UploadZone.jsx`, `client/src/components/ProcessingView.jsx`, `client/src/components/Dashboard/` |
 
 ---
 
 ## 9. Changelog (recent)
 
+- **2026-06-07:** Upload-to-dashboard UI (`UploadZone`, `ProcessingView`, `Dashboard`, `AISummaryCard`, `BiomarkerGrid`); IDLE/PROCESSING/RESOLVED state machine; chained upload + interpret APIs; 37 backend tests unchanged
+- **2026-06-07:** React frontend scaffolded in `client/` (Vite, React, Tailwind v3 Vitality Core tokens, lucide-react, recharts); Vite `/api` proxy to port 5000
 - **2026-06-06:** Gemini AI layer wired (`services/aiService.js`); `/api/interpret` returns `{ success, aiPrompt, data }`; `GEMINI_API_KEY` in `.env.example`; 37 tests
 - **2026-06-06:** Stripper hotfix (B12, 25-OH, Customer Since date); `POST /api/interpret` prompt-only; upload decoupled from aiPrompt; 35 tests
 - **2026-06-06:** Universal range-stripping parser; date-only metadata; aiContextGenerator
