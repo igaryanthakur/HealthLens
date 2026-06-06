@@ -1,7 +1,7 @@
 # HealthLens AI — Project Context
 
 **Last Updated:** Saturday, June 6, 2026  
-**Status:** Day 3 / 6 (AI Interpretation Layer In-Progress)
+**Status:** Day 3 / 6 (AI Interpretation Layer Done — Day 4 React UI Next)
 
 ---
 
@@ -49,9 +49,11 @@ It is a web-based platform that helps patients understand, organize, and analyze
 |----------|--------|---------|
 | `GET /health` | Live | System health check |
 | `POST /api/upload` | Live | Multer upload (`report` field). Deterministic OCR/extraction. Returns `structured` JSON + cleaned text fields |
-| `POST /api/interpret` | Live (prompt-only) | Accepts `{ structured }`. Returns `{ success, aiPrompt }` via [`utils/aiContextGenerator.js`](utils/aiContextGenerator.js). **Gemini call not wired yet** |
+| `POST /api/interpret` | Live | Accepts `{ structured }`. Builds prompt via [`utils/aiContextGenerator.js`](utils/aiContextGenerator.js), calls Gemini via [`services/aiService.js`](services/aiService.js). Returns `{ success, aiPrompt, data }` where `data` is `{ summary, findings, recommendations }` |
 
-**Typical flow:** Upload → copy `structured` → call `/api/interpret` → use `aiPrompt` for LLM (Day 3).
+**Typical flow:** Upload → copy `structured` → call `/api/interpret` → receive `data` for UI (and `aiPrompt` for debugging).
+
+**Env:** `GEMINI_API_KEY` required for interpret (documented in `.env.example`).
 
 ---
 
@@ -70,7 +72,9 @@ flowchart TD
   filter --> structured[structured_JSON]
   structured --> interpret[POST_api_interpret]
   interpret --> aiPrompt[aiPrompt_text]
-  aiPrompt --> gemini[Gemini_API_Day3]
+  aiPrompt --> aiService[aiService]
+  aiService --> gemini[gemini-1.5-flash]
+  gemini --> data[summary_findings_recommendations]
 ```
 
 **Pipeline steps:**
@@ -83,6 +87,7 @@ flowchart TD
 7. **Enrichment:** [`services/clinicalFilterService.js`](services/clinicalFilterService.js) — units, status (low/normal/high), validation, dedupe, flags, OCR traceability
 8. **Metadata:** [`utils/clinical/metadataPrepass.js`](utils/clinical/metadataPrepass.js) — **date only** (`patient_info.reportDate`); name/age/gender deferred to future auth profile
 9. **AI prompt:** [`utils/aiContextGenerator.js`](utils/aiContextGenerator.js) — `MEDICAL REPORT CONTEXT` string (token-efficient for LLM)
+10. **AI interpretation:** [`services/aiService.js`](services/aiService.js) — Gemini 1.5 Flash with strict `responseSchema` JSON output
 
 **Extraction method on measurements:** `generalized_stripper`
 
@@ -101,13 +106,10 @@ flowchart TD
 - **Metadata:** Date-only extraction (no name/age/gender in API)
 - **AI context generator:** Structured JSON → optimized prompt text
 - **Testing UI:** [`index.html`](index.html) — visual upload tester
-- **Tests:** **35/35 passing**
-
-### IN PROGRESS (Day 3)
-
-- **AI Interpretation Layer:** Wire [`services/aiService.js`](services/aiService.js) with `@google/generative-ai` SDK
-- **Extend `/api/interpret`:** Call Gemini; return formatted JSON (Summary, Findings, Recommendations) for future UI
-- **Env:** `GEMINI_API_KEY` (not in `.env.example` yet)
+- **AI Interpretation Layer:** [`services/aiService.js`](services/aiService.js) — Gemini 1.5 Flash, strict JSON schema (`summary`, `findings`, `recommendations`)
+- **Interpret endpoint (live):** `/api/interpret` returns `{ success, aiPrompt, data }`
+- **Env:** `GEMINI_API_KEY` in `.env.example`
+- **Tests:** **37/37 passing**
 
 ### TO DO (Days 4–6)
 
@@ -129,6 +131,7 @@ flowchart TD
 | CBC parsing fixes | Done | Orchestration order, haemogram, ref-before-value |
 | Range-stripping universal parser | Done | canonicalMap-driven extractor |
 | Stripper hotfix + interpret API | Done | B12/25-OH/date fixes; separate interpret route |
+| Gemini AI interpretation | Done | aiService + live `/api/interpret` with schema-enforced JSON |
 
 ---
 
@@ -147,8 +150,8 @@ flowchart TD
 
 ## 7. Test status
 
-- **Unit tests:** **35/35 passing** (`npm test`)
-- **Coverage includes:** row stitcher, section extractor, generalized stripper, metadata prepass, interpret handler, aiContextGenerator, CBC PDF fixture, integration extraction, validation, traceability, unit normalizer
+- **Unit tests:** **37/37 passing** (`npm test`)
+- **Coverage includes:** row stitcher, section extractor, generalized stripper, metadata prepass, interpret handler, aiContextGenerator, aiService, CBC PDF fixture, integration extraction, validation, traceability, unit normalizer
 - **Golden layouts:** `CBC.pdf` (9/9 core CBC measurements), `reports.pdf` (vitamins, lipids, etc.)
 
 ---
@@ -164,6 +167,7 @@ flowchart TD
 | Extractor | `utils/clinical/parameterRegexMap.js`, `utils/canonicalMap.json` |
 | Metadata | `utils/clinical/metadataPrepass.js` |
 | AI prep | `utils/aiContextGenerator.js` |
+| AI interpretation | `services/aiService.js` |
 | Enrichment | `unitNormalizer.js`, `validationSanityEngine.js`, `reportClassifier.js`, `clinicalFlags.js`, `traceability.js` |
 | Manual UI | `index.html` |
 
@@ -171,6 +175,7 @@ flowchart TD
 
 ## 9. Changelog (recent)
 
+- **2026-06-06:** Gemini AI layer wired (`services/aiService.js`); `/api/interpret` returns `{ success, aiPrompt, data }`; `GEMINI_API_KEY` in `.env.example`; 37 tests
 - **2026-06-06:** Stripper hotfix (B12, 25-OH, Customer Since date); `POST /api/interpret` prompt-only; upload decoupled from aiPrompt; 35 tests
 - **2026-06-06:** Universal range-stripping parser; date-only metadata; aiContextGenerator
 - **Earlier:** CBC.pdf fixes; Plans 1–4; section stitching; enrichment

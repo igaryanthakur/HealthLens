@@ -16,11 +16,10 @@ This file is updated automatically after significant changes.
 - Structured JSON extraction (`structured.patient_info`, `structured.measurements`)
 - Canonical-alias range-stripping extractor (38 parameters from `canonicalMap.json`)
 - LLM-ready `aiPrompt` text generated from structured output
+- Gemini-powered interpretation (`summary`, `findings`, `recommendations`) via `POST /api/interpret`
 - Deterministic status/priority assignment (range first, thresholds fallback)
 
 Not included in this phase:
-
-- Live AI analysis/summarization (prompt is prepared; LLM call not wired)
 - MongoDB
 - Frontend
 
@@ -32,6 +31,7 @@ Not included in this phase:
 - pdfjs-dist (+ @napi-rs/canvas for PDF page rendering)
 - sharp
 - tesseract.js
+- @google/generative-ai (Gemini 1.5 Flash)
 - dotenv
 
 ## Project Structure
@@ -39,6 +39,7 @@ Not included in this phase:
 - `server.js`
 - `routes/interpret.js`
 - `middleware/upload.js`
+- `services/aiService.js`
 - `services/extractionService.js`
 - `services/clinicalFilterService.js`
 - `services/pdfService.js`
@@ -75,6 +76,8 @@ On Windows PowerShell:
 ```powershell
 Copy-Item .env.example .env
 ```
+
+Set `GEMINI_API_KEY` in `.env` (required for `POST /api/interpret`). Get a key from [Google AI Studio](https://aistudio.google.com/apikey).
 
 3) Start the backend:
 
@@ -201,11 +204,11 @@ Possible extraction methods:
 - `pdf-ocr-fallback` (scanned PDF fallback OCR)
 - `image-ocr` (uploaded image OCR)
 
-### Generate AI prompt (interpret)
+### AI interpretation (interpret)
 
 `POST /api/interpret`
 
-Accepts JSON body with the `structured` object returned from upload. Returns an LLM-ready prompt string. No external AI call is made in this phase.
+Accepts JSON body with the `structured` object returned from upload. Builds a token-efficient prompt via `aiContextGenerator`, then calls Gemini 1.5 Flash with a strict JSON schema. Requires `GEMINI_API_KEY` in `.env`.
 
 #### cURL
 
@@ -220,11 +223,22 @@ Example response:
 ```json
 {
   "success": true,
-  "aiPrompt": "MEDICAL REPORT CONTEXT:\n- Report Type: CBC\n..."
+  "aiPrompt": "MEDICAL REPORT CONTEXT:\n- Report Type: CBC\n...",
+  "data": {
+    "summary": "Brief overview of overall health based on the report.",
+    "findings": [
+      {
+        "parameter": "Hemoglobin",
+        "status": "Low",
+        "explanation": "One-sentence, jargon-free explanation."
+      }
+    ],
+    "recommendations": ["Actionable lifestyle or dietary tip."]
+  }
 }
 ```
 
-Typical flow: upload a report with `POST /api/upload`, then pass the `structured` field to `POST /api/interpret` to obtain `aiPrompt`.
+Typical flow: upload a report with `POST /api/upload`, then pass the `structured` field to `POST /api/interpret` to obtain `data` (and `aiPrompt` for debugging).
 
 ## Deterministic Clinical Filtering Rules
 
@@ -237,7 +251,7 @@ The filtering pipeline:
 - extracts rubric measurements via canonical-alias range-stripping (CBC, Diabetes, Lipid, Kidney, Liver, Iron, Vitamins, Thyroid)
 - parses reference ranges and assigns deterministic status/priority
 - deduplicates repeated measurements while preserving source trace
-- generates `aiPrompt` via separate `POST /api/interpret` (no live LLM call yet)
+- generates `aiPrompt` and Gemini interpretation (`data`) via separate `POST /api/interpret`
 
 ## Verification Checklist
 
