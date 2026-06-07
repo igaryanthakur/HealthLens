@@ -89,6 +89,14 @@ export async function fetchReportHistory() {
   return parseJsonResponse(res);
 }
 
+export async function fetchReportById(id) {
+  const res = await fetch(`/api/reports/${id}`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
 export async function fetchCurrentUser() {
   const res = await fetch('/api/users/me', {
     headers: authHeaders(),

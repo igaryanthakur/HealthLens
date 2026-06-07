@@ -17,3 +17,16 @@ export function normalizeStructured(structured) {
     })),
   }
 }
+
+export function reportToDashboardPayload(report) {
+  return {
+    _id: report._id,
+    success: true,
+    data: report.aiInterpretation,
+    structured: {
+      reportType: report.reportType,
+      patient_info: { reportDate: report.reportDate },
+      measurements: report.measurements ?? [],
+    },
+  }
+}

@@ -1,2 +1,2 @@
 Here is the current state of my project. Read this and wait for my first instruction.
-Read @PROJECT_CONTEXT.md 
+Read @PROJECT_CONTEXT.md

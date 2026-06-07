@@ -1,6 +1,12 @@
 import { Link, useNavigate } from 'react-router-dom'
-import { HeartPulse, LogOut } from 'lucide-react'
+import { HeartPulse, LogOut, User } from 'lucide-react'
 import { clearAuthToken, getAuthToken } from '../../lib/api'
+
+const PUBLIC_LINKS = [
+  { href: '/#features', label: 'Features' },
+  { href: '/#how-it-works', label: 'How It Works' },
+  { href: '/#impact', label: 'Impact' },
+]
 
 export default function Navbar() {
   const navigate = useNavigate()
@@ -12,14 +18,14 @@ export default function Navbar() {
   }
 
   return (
-    <header className="sticky top-0 z-50 bg-surface/90 backdrop-blur-md border-b border-outline-variant/20">
-      <div className="max-w-[1440px] mx-auto px-6 py-4 flex items-center justify-between gap-4">
-        <Link to="/" className="flex items-center gap-2">
+    <header className="sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-md border-b border-outline-variant/20">
+      <div className="max-w-[1440px] mx-auto px-6 py-4 grid grid-cols-3 items-center gap-4">
+        <Link to="/" className="flex items-center gap-2 justify-self-start">
           <HeartPulse className="text-primary" size={28} />
           <span className="font-semibold text-primary text-lg">HealthLens AI</span>
         </Link>
 
-        <nav className="flex items-center gap-4">
+        <nav className="hidden md:flex items-center justify-center gap-6">
           {isLoggedIn ? (
             <>
               <Link
@@ -29,10 +35,35 @@ export default function Navbar() {
                 Dashboard
               </Link>
               <Link
-                to="/profile"
+                to="/vault"
                 className="text-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Profile
+                Vault
+              </Link>
+            </>
+          ) : (
+            PUBLIC_LINKS.map((link) => (
+              <a
+                key={link.href}
+                href={link.href}
+                className="text-sm text-on-surface-variant hover:text-primary transition-colors"
+              >
+                {link.label}
+              </a>
+            ))
+          )}
+        </nav>
+
+        <div className="flex items-center justify-end gap-3">
+          {isLoggedIn ? (
+            <>
+              <Link
+                to="/profile"
+                className="inline-flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors"
+                aria-label="Profile"
+              >
+                <User size={20} />
+                <span className="hidden lg:inline">Profile</span>
               </Link>
               <button
                 type="button"
@@ -40,7 +71,7 @@ export default function Navbar() {
                 className="inline-flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors"
               >
                 <LogOut size={16} />
-                Logout
+                <span className="hidden sm:inline">Logout</span>
               </button>
             </>
           ) : (
@@ -49,7 +80,7 @@ export default function Navbar() {
                 to="/login"
                 className="text-sm text-on-surface-variant hover:text-primary transition-colors"
               >
-                Login
+                Log In
               </Link>
               <Link
                 to="/register"
@@ -59,7 +90,7 @@ export default function Navbar() {
               </Link>
             </>
           )}
-        </nav>
+        </div>
       </div>
     </header>
   )

@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { historyHandler } = require("../routes/reports");
+const { historyHandler, getByIdHandler } = require("../routes/reports");
 
 function createMockRes() {
   return {
@@ -70,4 +70,76 @@ test("history handler returns 500 when fetch fails", async () => {
   assert.equal(res.statusCode, 500);
   assert.equal(res.body.success, false);
   assert.match(res.body.message, /Failed to fetch report history/);
+});
+
+const ownedReportId = "507f1f77bcf86cd799439011";
+const otherUserId = "507f1f77bcf86cd799439099";
+
+const ownedReport = {
+  _id: ownedReportId,
+  userId: { toString: () => stubUserId },
+  reportDate: new Date("2026-06-01"),
+  reportType: "CBC",
+  measurements: [{ name: "hemoglobin", value: 14, status: "normal" }],
+  aiInterpretation: { summary: "All normal", findings: [], recommendations: [] },
+};
+
+test("getById handler returns success and report for owner", async () => {
+  const res = createMockRes();
+
+  await getByIdHandler(
+    { params: { id: ownedReportId }, user: { id: stubUserId } },
+    res,
+    { findById: async () => ownedReport },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.deepEqual(res.body.report, ownedReport);
+});
+
+test("getById handler returns 403 when userId does not match", async () => {
+  const res = createMockRes();
+
+  await getByIdHandler(
+    { params: { id: ownedReportId }, user: { id: otherUserId } },
+    res,
+    { findById: async () => ownedReport },
+  );
+
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.success, false);
+  assert.equal(res.body.message, "Forbidden.");
+});
+
+test("getById handler returns 404 when report not found", async () => {
+  const res = createMockRes();
+
+  await getByIdHandler(
+    { params: { id: ownedReportId }, user: { id: stubUserId } },
+    res,
+    { findById: async () => null },
+  );
+
+  assert.equal(res.statusCode, 404);
+  assert.equal(res.body.success, false);
+  assert.match(res.body.message, /Report not found/);
+});
+
+test("getById handler returns 500 when fetch fails", async () => {
+  const res = createMockRes();
+
+  await getByIdHandler(
+    { params: { id: ownedReportId }, user: { id: stubUserId } },
+    res,
+    {
+      findById: async () => {
+        throw new Error("Database connection lost");
+      },
+    },
+  );
+
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.body.success, false);
+  assert.match(res.body.message, /Failed to fetch report/);
 });

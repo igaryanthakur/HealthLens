@@ -1,11 +1,12 @@
 import { useRef } from 'react'
 import { useReactToPrint } from 'react-to-print'
-import AISummaryCard from './AISummaryCard'
+import AIRecommendationCard from './AIRecommendationCard'
 import BiomarkerGrid from './BiomarkerGrid'
 import HealthTimelineCard from './HealthTimelineCard'
-import { CircleCheckBig, Download } from 'lucide-react'
+import TimelineSelector from './TimelineSelector'
+import { Download } from 'lucide-react'
 
-export default function Dashboard({ payload }) {
+export default function Dashboard({ payload, history = [], activeReportId, onSelectReport }) {
   const componentRef = useRef(null)
 
   const handlePrint = useReactToPrint({
@@ -30,25 +31,18 @@ export default function Dashboard({ payload }) {
           </button>
         </div>
 
+        {history.length > 1 && onSelectReport && (
+          <TimelineSelector
+            history={history}
+            activeReportId={activeReportId}
+            onSelectReport={onSelectReport}
+          />
+        )}
+
         <div ref={componentRef} className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          <HealthTimelineCard className="md:col-span-12" />
+          <HealthTimelineCard className="md:col-span-8" />
 
-          <AISummaryCard data={payload.data} className="md:col-span-8" />
-
-          <div className="md:col-span-4 bg-surface-container-lowest rounded-2xl border border-outline-variant/20 shadow-ambient p-6 flex flex-col justify-center">
-            <CircleCheckBig className="text-primary mb-3" size={32} />
-            <h3 className="font-semibold text-on-surface mb-1">Analysis Complete</h3>
-            <p className="text-sm text-on-surface-variant">
-              {payload.structured?.reportType
-                ? `${payload.structured.reportType} report processed`
-                : 'Your report has been processed'}
-            </p>
-            {payload.structured?.patient_info?.reportDate && (
-              <p className="text-xs text-on-surface-variant mt-2">
-                Report date: {payload.structured.patient_info.reportDate}
-              </p>
-            )}
-          </div>
+          <AIRecommendationCard data={payload.data} className="md:col-span-4" />
 
           <BiomarkerGrid
             measurements={payload.structured?.measurements ?? []}

@@ -43,11 +43,16 @@ export default function HealthTimelineCard({ className = '' }) {
 
   return (
     <div
-      className={`bg-surface-container-lowest rounded-2xl border border-outline-variant/20 shadow-ambient p-6 ${className}`}
+      className={`bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-ambient p-6 ${className}`}
     >
-      <div className="flex items-center gap-2 mb-4">
-        <Activity className="text-primary" size={22} />
-        <h2 className="text-lg font-semibold text-on-surface">Health Vitality Trend</h2>
+      <div className="mb-4">
+        <div className="flex items-center gap-2">
+          <Activity className="text-primary" size={22} />
+          <h2 className="text-lg font-semibold text-on-surface">30-Day Health Trend</h2>
+        </div>
+        <p className="text-sm text-on-surface-variant mt-1 ml-8">
+          Vitality score across your uploaded reports
+        </p>
       </div>
 
       {loading && (

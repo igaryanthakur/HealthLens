@@ -71,7 +71,7 @@ function MeasurementCard({ measurement }) {
 
   return (
     <div
-      className={`bg-surface-container-lowest rounded-xl border shadow-ambient p-5 ${styles.card}`}
+      className={`bg-surface-container-lowest rounded-[16px] border border-outline-variant/10 shadow-ambient p-5 ${styles.card}`}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
         <h3 className="font-medium text-on-surface text-sm">
