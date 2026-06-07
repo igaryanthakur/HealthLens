@@ -1,7 +1,9 @@
 const express = require("express");
 const { generateClinicalSummaryPrompt } = require("../utils/aiContextGenerator");
+const { buildProfileContext } = require("../utils/profileContextBuilder");
 const { generateInterpretation } = require("../services/aiService");
 const Report = require("../models/Report");
+const User = require("../models/User");
 const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
@@ -36,7 +38,10 @@ async function interpretHandler(req, res, deps = {}) {
     }
 
     const aiPrompt = generateClinicalSummaryPrompt(structured);
-    const interpretation = await genInterpret(aiPrompt);
+    const findUserById = deps.findUserById ?? ((id) => User.findById(id));
+    const user = await findUserById(req.user.id);
+    const profileContext = buildProfileContext(user);
+    const interpretation = await genInterpret(aiPrompt, { profileContext });
 
     const report = new Report({
       userId: req.user.id,

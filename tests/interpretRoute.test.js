@@ -37,6 +37,19 @@ function createTestDeps(overrides = {}) {
   return {
     generateInterpretation: async () => stubInterpretation,
     saveReport: async () => ({ _id: stubReportId }),
+    findUserById: async () => ({
+      profile: {
+        dateOfBirth: new Date("1990-01-15T00:00:00.000Z"),
+        gender: "Female",
+        heightCm: 165,
+        weightKg: 60,
+        chronicConditions: ["Hypertension"],
+        lifestyle: {
+          smokingStatus: "Never",
+          alcoholConsumption: "None",
+        },
+      },
+    }),
     ...overrides,
   };
 }
@@ -48,8 +61,18 @@ test("interpret handler returns aiPrompt and data for valid structured body", as
   ].join("\n");
   const { structured } = filterClinicalData(sample, { ocrPages: [] });
   const res = createMockRes();
+  let receivedProfileContext = null;
 
-  await interpretHandler({ body: { structured }, user: { id: stubUserId } }, res, createTestDeps());
+  await interpretHandler(
+    { body: { structured }, user: { id: stubUserId } },
+    res,
+    createTestDeps({
+      generateInterpretation: async (_aiPrompt, deps) => {
+        receivedProfileContext = deps.profileContext;
+        return stubInterpretation;
+      },
+    }),
+  );
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.success, true);
@@ -60,6 +83,9 @@ test("interpret handler returns aiPrompt and data for valid structured body", as
   assert.deepEqual(res.body.data.findings, stubInterpretation.findings);
   assert.deepEqual(res.body.data.recommendations, stubInterpretation.recommendations);
   assert.equal(res.body.reportId, stubReportId);
+  assert.ok(receivedProfileContext);
+  assert.match(receivedProfileContext, /Gender: Female/);
+  assert.match(receivedProfileContext, /Chronic Conditions: Hypertension/);
 });
 
 test("interpret handler returns 500 when report save fails", async () => {

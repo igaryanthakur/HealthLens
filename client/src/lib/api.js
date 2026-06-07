@@ -88,3 +88,24 @@ export async function fetchReportHistory() {
 
   return parseJsonResponse(res);
 }
+
+export async function fetchCurrentUser() {
+  const res = await fetch('/api/users/me', {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function updateUserProfile(profile) {
+  const res = await fetch('/api/users/profile', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify(profile),
+  });
+
+  return parseJsonResponse(res);
+}

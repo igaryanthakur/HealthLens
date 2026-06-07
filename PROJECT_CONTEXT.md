@@ -37,13 +37,13 @@ It is a web-based platform that helps patients understand, organize, and analyze
 ### Currently in repo (MVP — Day 1–4)
 
 - **Backend:** Node.js + Express 5 (CommonJS) on port 5000
-- **React frontend:** [`client/`](client/) — Vite + React, Tailwind CSS v3 (Vitality Core tokens), lucide-react, recharts; upload → interpret → dashboard flow; dev proxy `/api` → `localhost:5000`
+- **React frontend:** [`client/`](client/) — Vite + React, Tailwind CSS v3 (Vitality Core tokens), lucide-react, recharts, **react-router-dom**; page routes (`/`, `/login`, `/register`, `/dashboard`, `/profile`); dev proxy `/api` → `localhost:5000`
 - **MongoDB:** Mongoose + [`models/Report.js`](models/Report.js) — `mongodb://localhost:27017/healthlens` via [`config/db.js`](config/db.js); server connects before listen
-- **JWT auth:** [`models/User.js`](models/User.js), [`routes/auth.js`](routes/auth.js), [`middleware/authMiddleware.js`](middleware/authMiddleware.js) — `bcryptjs` password hashing, `jsonwebtoken` (30d expiry); `protect` applied to upload, interpret, and report history routes; reports scoped by `userId` ObjectId ref
+- **JWT auth:** [`models/User.js`](models/User.js) (nested `profile` subdocument: DOB, gender, blood group, biometrics, chronic conditions, lifestyle), [`routes/auth.js`](routes/auth.js), [`routes/users.js`](routes/users.js), [`middleware/authMiddleware.js`](middleware/authMiddleware.js) — `bcryptjs` password hashing, `jsonwebtoken` (30d expiry); `protect` on upload/interpret/history/users routes; reports scoped by `userId` ObjectId ref
 - **Local extraction:** `pdf-parse`, `pdfjs-dist`, `@napi-rs/canvas`, `tesseract.js`, `sharp`
 - **Manual UI:** [`index.html`](index.html) — browser upload tester (fetch → `POST /api/upload`)
 - **Workspace:** `c:\Users\aryan\Downloads\College\Projects\HealthLens AI`
-- **Commands:** `npm install` · `npm run dev` (backend, port 5000) · `cd client && npm run dev` (frontend, port 5173) · `npm test`
+- **Commands:** `npm install` · `npm run dev` (backend port 5000 + frontend port 5173) · `npm test`
 
 ### Core endpoints (current)
 
@@ -51,12 +51,14 @@ It is a web-based platform that helps patients understand, organize, and analyze
 |----------|--------|---------|
 | `GET /health` | Live | System health check |
 | `POST /api/upload` | Live (auth) | Bearer JWT required. Multer upload (`report` field). Deterministic OCR/extraction. Returns `structured` JSON + cleaned text fields |
-| `POST /api/interpret` | Live (auth) | Bearer JWT required. Accepts `{ structured }`. Builds prompt via [`utils/aiContextGenerator.js`](utils/aiContextGenerator.js), calls Gemini via [`services/aiService.js`](services/aiService.js), persists [`models/Report.js`](models/Report.js) with `userId`. Returns `{ success, aiPrompt, data, reportId }` where `data` is `{ summary, findings, recommendations }` |
+| `POST /api/interpret` | Live (auth) | Bearer JWT required. Accepts `{ structured }`. Fetches user profile, builds profile-aware prompt via [`utils/profileContextBuilder.js`](utils/profileContextBuilder.js), calls Gemini via [`services/aiService.js`](services/aiService.js), persists [`models/Report.js`](models/Report.js) with `userId`. Returns `{ success, aiPrompt, data, reportId }` where `data` is `{ summary, findings, recommendations }` |
 | `GET /api/reports/history` | Live (auth) | Bearer JWT required. Returns authenticated user's reports sorted by `reportDate` ascending. Each report includes `vitalityScore` virtual (100 minus 5 per low/high measurement) |
 | `POST /api/auth/register` | Live | Accepts `{ name, email, password }`. Creates user (bcrypt-hashed password), returns `{ success, user, token }` |
 | `POST /api/auth/login` | Live | Accepts `{ email, password }`. Validates credentials via `matchPassword`, returns `{ success, user, token }` |
+| `GET /api/users/me` | Live (auth) | Bearer JWT required. Returns `{ success, user }` with nested `profile` (password excluded) |
+| `PUT /api/users/profile` | Live (auth) | Bearer JWT required. Accepts profile fields (`dateOfBirth`, `gender`, `bloodGroup`, `heightCm`, `weightKg`, `chronicConditions`, `lifestyle`). Updates logged-in user's profile, returns updated user |
 
-**Typical flow:** React app login/register → token stored in localStorage → upload report (`POST /api/upload`) → interpret (`POST /api/interpret`) → dashboard renders `data` + `structured.measurements` + user-scoped history chart. Manual/debug: obtain token via `/api/auth/login`, then pass `Authorization: Bearer <token>` on protected routes.
+**Typical flow:** Landing → register/login → `/dashboard` upload report (`POST /api/upload`) → interpret (`POST /api/interpret`) → results dashboard with categorized biomarkers + user-scoped history chart. Manual/debug: obtain token via `/api/auth/login`, then pass `Authorization: Bearer <token>` on protected routes.
 
 **Env:** `GEMINI_API_KEY` required for interpret; `JWT_SECRET` required for auth (documented in `.env.example`).
 
@@ -121,21 +123,25 @@ flowchart TD
 - **Vitality score:** `vitalityScore` virtual on [`models/Report.js`](models/Report.js) — base 100, −5 per `low`/`high` measurement
 - **Report history:** [`routes/reports.js`](routes/reports.js) — `GET /api/reports/history`
 - **JWT auth backend:** [`models/User.js`](models/User.js) (bcrypt pre-save hook, `matchPassword`); [`routes/auth.js`](routes/auth.js) — register/login; [`middleware/authMiddleware.js`](middleware/authMiddleware.js) — `protect` on upload/interpret/history; Report `userId` ObjectId ref to User
-- **React auth UI:** login/register gate in [`client/src/App.jsx`](client/src/App.jsx); JWT helpers + Bearer headers in [`client/src/lib/api.js`](client/src/lib/api.js)
+- **React auth UI:** separate [`pages/Login.jsx`](client/src/pages/Login.jsx) and [`pages/Register.jsx`](client/src/pages/Register.jsx); JWT helpers + Bearer headers in [`client/src/lib/api.js`](client/src/lib/api.js); `ProtectedRoute` in [`client/src/App.jsx`](client/src/App.jsx) checks localStorage token
+- **React Router:** [`client/src/App.jsx`](client/src/App.jsx) — `BrowserRouter`, routes `/`, `/login`, `/register`, `/dashboard`, `/profile`; sticky [`Navbar`](client/src/components/Layout/Navbar.jsx) with auth-aware links
 - **Tests:** **43/43 passing**
 
 ### DONE (Day 4 — core UI)
 
 - **React scaffold:** [`client/`](client/) Vitality Core design system (Tailwind v3, Inter, `glass-card`, `shadow-ambient`)
-- **Upload flow:** Auth gate → `UploadZone` → `ProcessingView` → `Dashboard` state machine in [`client/src/App.jsx`](client/src/App.jsx)
-- **API wiring:** login/register + chained `/api/upload` + `/api/interpret` with Bearer JWT via [`client/src/lib/api.js`](client/src/lib/api.js)
-- **Dashboard:** `HealthTimelineCard` (recharts vitality score trend via `fetchReportHistory`), `AISummaryCard` (summary + recommendations), `BiomarkerGrid` (status-driven measurement cards)
+- **Upload flow:** [`pages/Dashboard.jsx`](client/src/pages/Dashboard.jsx) — `UploadZone` → `ProcessingView` → `components/Dashboard/Dashboard` state machine
+- **API wiring:** login/register pages + chained `/api/upload` + `/api/interpret` with Bearer JWT via [`client/src/lib/api.js`](client/src/lib/api.js)
+- **Dashboard:** `HealthTimelineCard` (recharts vitality score trend via `fetchReportHistory`), `AISummaryCard` (summary + recommendations), `BiomarkerGrid` (category-grouped measurement cards with status colors), **Download PDF** via `react-to-print` on [`Dashboard.jsx`](client/src/components/Dashboard/Dashboard.jsx)
+- **Landing:** [`pages/Landing.jsx`](client/src/pages/Landing.jsx) — public hero ("Empathetic Precision" placeholder)
+- **Profile:** [`pages/Profile.jsx`](client/src/pages/Profile.jsx) — medical intake form (demographics, biometrics/BMI, lifestyle, chronic conditions); `GET /api/users/me` + `PUT /api/users/profile`
+- **AI profile context:** [`utils/profileContextBuilder.js`](utils/profileContextBuilder.js) — age/BMI calculation; profile string prepended to Gemini prompt at interpret time
 
 ### TO DO (Day 4 polish + Days 5–6)
 
 - **Day 4 remaining:** Findings display, reset/new-report action
 - **Day 5 remaining:** Risk detection, per-biomarker trend lines
-- **Day 6:** Production polish — error handling, PDF export, branding
+- **Day 6:** Production polish — error handling, branding (PDF export: dashboard print-to-PDF done)
 
 ---
 
@@ -156,6 +162,9 @@ flowchart TD
 | Vitality score + history API | Done | `vitalityScore` virtual; `GET /api/reports/history` sorted by reportDate |
 | JWT auth backend | Done | User model, register/login routes, `protect` middleware; `JWT_SECRET` in `.env.example` |
 | Secure user-scoped routes | Done | `protect` on upload/interpret/history; Report `userId` ObjectId ref; React auth gate + JWT headers |
+| Dashboard PDF export | Done | `react-to-print` action bar on Dashboard; print grid to browser PDF (`HealthLens_AI_Report`) |
+| React Router + pages | Done | `react-router-dom`; Landing/Login/Register/Dashboard/Profile pages; `ProtectedRoute`; global Navbar; BiomarkerGrid category grouping |
+| User profile + AI context | Done | User `profile` schema; `GET /api/users/me` + `PUT /api/users/profile`; Profile intake form; profile injected into Gemini interpret prompt |
 
 ---
 
@@ -176,8 +185,8 @@ flowchart TD
 
 ## 7. Test status
 
-- **Unit tests:** **43/43 passing** (`npm test`)
-- **Coverage includes:** row stitcher, section extractor, generalized stripper, metadata prepass, interpret handler, vitalityScore virtual, reports history handler, aiContextGenerator, aiService, CBC PDF fixture, integration extraction, validation, traceability, unit normalizer
+- **Unit tests:** **54/54 passing** (`npm test`)
+- **Coverage includes:** row stitcher, section extractor, generalized stripper, metadata prepass, interpret handler, profileContextBuilder, users route handlers, vitalityScore virtual, reports history handler, aiContextGenerator, aiService, CBC PDF fixture, integration extraction, validation, traceability, unit normalizer
 - **Golden layouts:** `CBC.pdf` (9/9 core CBC measurements), `reports.pdf` (vitamins, lipids, etc.)
 
 ---
@@ -186,9 +195,10 @@ flowchart TD
 
 | Area | Files |
 |------|-------|
-| Entry | `server.js`, `routes/upload.js`, `routes/interpret.js`, `routes/reports.js`, `routes/auth.js` |
+| Entry | `server.js`, `routes/upload.js`, `routes/interpret.js`, `routes/reports.js`, `routes/auth.js`, `routes/users.js` |
 | Database | `config/db.js`, `models/Report.js`, `models/User.js` |
-| Auth | `middleware/authMiddleware.js` (`protect`) |
+| Auth | `middleware/authMiddleware.js` (`protect`), `utils/formatUser.js` |
+| Profile / AI context | `utils/profileContextBuilder.js`, `routes/users.js` |
 | Orchestration | `services/extractionService.js` |
 | Clinical pipeline | `services/clinicalFilterService.js` |
 | Sectioning | `services/sectionExtractor.js`, `utils/rowStitcher.js` |
@@ -198,12 +208,15 @@ flowchart TD
 | AI interpretation | `services/aiService.js` |
 | Enrichment | `unitNormalizer.js`, `validationSanityEngine.js`, `reportClassifier.js`, `clinicalFlags.js`, `traceability.js` |
 | Manual UI | `index.html` |
-| React frontend | `client/src/App.jsx`, `client/src/lib/api.js`, `client/src/components/UploadZone.jsx`, `client/src/components/ProcessingView.jsx`, `client/src/components/Dashboard/` (`HealthTimelineCard`, `AISummaryCard`, `BiomarkerGrid`) |
+| React frontend | `client/src/App.jsx` (router shell), `client/src/pages/` (Landing, Login, Register, Dashboard, Profile), `client/src/lib/api.js`, `client/src/lib/structured.js`, `client/src/components/Layout/Navbar.jsx`, `client/src/components/UploadZone.jsx`, `client/src/components/ProcessingView.jsx`, `client/src/components/Dashboard/` (`HealthTimelineCard`, `AISummaryCard`, `BiomarkerGrid`) |
 
 ---
 
 ## 9. Changelog (recent)
 
+- **2026-06-07:** User profile + AI context — nested `profile` on [`models/User.js`](models/User.js); `GET /api/users/me` + `PUT /api/users/profile` via [`routes/users.js`](routes/users.js); full Profile intake form; [`utils/profileContextBuilder.js`](utils/profileContextBuilder.js) prepends age/BMI/conditions/lifestyle to Gemini prompt; 54 tests
+- **2026-06-07:** React Router scaffold — `react-router-dom`; [`App.jsx`](client/src/App.jsx) routing shell with `ProtectedRoute`; pages (`Landing`, `Login`, `Register`, `Dashboard`, `Profile`); sticky [`Navbar`](client/src/components/Layout/Navbar.jsx); `BiomarkerGrid` grouped by measurement `category` with lucide icons; 43 tests unchanged
+- **2026-06-07:** Dashboard PDF export — `react-to-print` on [`Dashboard.jsx`](client/src/components/Dashboard/Dashboard.jsx); action bar with Download PDF; printable grid ref; `print:hidden` on controls
 - **2026-06-07:** Secure user-scoped routes — Report `userId` ObjectId ref to User; `protect` on upload/interpret/history; React login/register gate + JWT Bearer headers in api client; 43 tests unchanged
 - **2026-06-07:** JWT auth backend — `models/User.js` (bcrypt hash + `matchPassword`), `POST /api/auth/register` + `/login`, `protect` middleware in [`middleware/authMiddleware.js`](middleware/authMiddleware.js); `JWT_SECRET` in `.env.example`; 43 tests unchanged
 - **2026-06-07:** `HealthTimelineCard` — recharts line chart for `vitalityScore` over `reportDate`; `fetchReportHistory()` in [`client/src/lib/api.js`](client/src/lib/api.js); full-width chart atop dashboard grid

@@ -26,6 +26,7 @@ app.use("/api/upload", uploadRouter);
 app.use("/api/interpret", interpretRouter);
 app.use("/api/reports", reportsRoute);
 app.use("/api/auth", authRoutes);
+app.use("/api/users", require("./routes/users"));
 
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {

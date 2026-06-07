@@ -28,6 +28,9 @@ export default {
         sans: ["Inter", "sans-serif"],
         display: ["Inter", "sans-serif"],
       },
+      fontSize: {
+        "headline-sm": ["1.125rem", { lineHeight: "1.4", fontWeight: "600" }],
+      },
       boxShadow: {
         ambient: "0 15px 30px -5px rgba(0, 106, 97, 0.08)",
       },

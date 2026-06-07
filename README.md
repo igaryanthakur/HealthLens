@@ -81,32 +81,19 @@ Copy-Item .env.example .env
 
 Set `GEMINI_API_KEY` in `.env` (required for `POST /api/interpret`). Get a key from [Google AI Studio](https://aistudio.google.com/apikey).
 
-3) Start the backend:
+3) Start backend and frontend (from repo root):
 
 ```bash
 npm run dev
 ```
 
-or
+Runs the API on `http://localhost:5000` and the React app on `http://localhost:5173`.
+
+Or start the backend only:
 
 ```bash
 npm start
 ```
-
-Server default: `http://localhost:5000`
-
-### Frontend (React scaffold)
-
-From the repo root:
-
-```bash
-cd client
-npm install
-npm run dev
-```
-
-Frontend default: `http://localhost:5173`  
-API calls from the React app use relative `/api/*` paths; Vite proxies them to `http://localhost:5000` (start the backend first).
 
 ## Environment Variables
 

@@ -72,13 +72,14 @@ async function generateInterpretation(aiPrompt, deps = {}) {
   try {
     const model = deps.getModel ? deps.getModel() : getAiModel();
 
+    const profilePrefix = deps.profileContext ? `${deps.profileContext}\n\n` : "";
+    const userMessage = `${profilePrefix}Here is the structured medical data to interpret:\n\n${aiPrompt}`;
+
     const result = await model.generateContent({
       contents: [
         {
           role: "user",
-          parts: [
-            { text: `Here is the structured medical data to interpret:\n\n${aiPrompt}` },
-          ],
+          parts: [{ text: userMessage }],
         },
       ],
     });

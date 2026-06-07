@@ -1,20 +1,13 @@
 const express = require("express");
 const jwt = require("jsonwebtoken");
 const User = require("../models/User");
+const { formatUser } = require("../utils/formatUser");
 const logger = require("../utils/logger");
 
 const router = express.Router();
 
 function generateToken(id) {
   return jwt.sign({ id: id.toString() }, process.env.JWT_SECRET, { expiresIn: "30d" });
-}
-
-function formatUser(user) {
-  return {
-    _id: user._id,
-    name: user.name,
-    email: user.email,
-  };
 }
 
 async function registerHandler(req, res, deps = {}) {

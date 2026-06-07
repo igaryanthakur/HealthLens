@@ -1,4 +1,14 @@
-import { FlaskConical } from 'lucide-react'
+import {
+  Droplets,
+  Filter,
+  FlaskConical,
+  Gauge,
+  Heart,
+  Magnet,
+  Pill,
+  Sun,
+  Zap,
+} from 'lucide-react'
 
 function capitalizeName(name) {
   if (!name) return 'Unknown'
@@ -38,55 +48,94 @@ function resolveUnit(measurement) {
   return measurement.unit ?? measurement.normalizedUnit ?? ''
 }
 
-export default function BiomarkerGrid({ measurements = [], className = '' }) {
+const CATEGORY_ICONS = {
+  CBC: Droplets,
+  Diabetes: Gauge,
+  Lipid: Heart,
+  Kidney: Filter,
+  Liver: Pill,
+  Iron: Magnet,
+  Vitamins: Sun,
+  Thyroid: Zap,
+  'General Vitals': FlaskConical,
+}
+
+function getCategoryIcon(category) {
+  return CATEGORY_ICONS[category] ?? FlaskConical
+}
+
+function MeasurementCard({ measurement }) {
+  const styles = getStatusStyles(measurement.status)
+  const value = resolveValue(measurement)
+  const unit = resolveUnit(measurement)
+
   return (
-    <div className={className}>
-      <div className="flex items-center gap-2 mb-4">
-        <FlaskConical className="text-primary" size={22} />
-        <h2 className="text-lg font-semibold text-on-surface">Biomarkers</h2>
+    <div
+      className={`bg-surface-container-lowest rounded-xl border shadow-ambient p-5 ${styles.card}`}
+    >
+      <div className="flex items-start justify-between gap-2 mb-3">
+        <h3 className="font-medium text-on-surface text-sm">
+          {capitalizeName(measurement.name)}
+        </h3>
+        {measurement.status && (
+          <span
+            className={`text-xs font-semibold px-2 py-0.5 rounded-full border capitalize ${styles.badge}`}
+          >
+            {measurement.status}
+          </span>
+        )}
       </div>
 
+      <p className="text-2xl font-semibold text-on-surface mb-2">
+        {value}
+        {unit && <span className="text-base font-normal text-on-surface-variant ml-1">{unit}</span>}
+      </p>
+
+      {measurement.referenceRange && (
+        <p className="text-xs text-on-surface-variant">
+          Ref: {measurement.referenceRange}
+        </p>
+      )}
+    </div>
+  )
+}
+
+export default function BiomarkerGrid({ measurements = [], className = '' }) {
+  const grouped = measurements.reduce((acc, measurement) => {
+    const category = measurement.category || 'General Vitals'
+    if (!acc[category]) acc[category] = []
+    acc[category].push(measurement)
+    return acc
+  }, {})
+
+  return (
+    <div className={className}>
       {measurements.length === 0 ? (
         <p className="text-on-surface-variant text-sm">No measurements extracted from this report.</p>
       ) : (
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
-          {measurements.map((measurement, index) => {
-            const styles = getStatusStyles(measurement.status)
-            const value = resolveValue(measurement)
-            const unit = resolveUnit(measurement)
+        Object.entries(grouped).map(([category, items], categoryIndex) => {
+          const Icon = getCategoryIcon(category)
 
-            return (
-              <div
-                key={measurement.id ?? `${measurement.name}-${index}`}
-                className={`bg-surface-container-lowest rounded-xl border shadow-ambient p-5 ${styles.card}`}
+          return (
+            <section key={category}>
+              <h2
+                className={`font-headline-sm text-primary mb-4 border-b border-outline-variant/30 pb-2 flex items-center gap-2 ${categoryIndex === 0 ? 'mt-0' : 'mt-6'}`}
               >
-                <div className="flex items-start justify-between gap-2 mb-3">
-                  <h3 className="font-medium text-on-surface text-sm">
-                    {capitalizeName(measurement.name)}
-                  </h3>
-                  {measurement.status && (
-                    <span
-                      className={`text-xs font-semibold px-2 py-0.5 rounded-full border capitalize ${styles.badge}`}
-                    >
-                      {measurement.status}
-                    </span>
-                  )}
-                </div>
+                <Icon size={20} />
+                {category}
+              </h2>
 
-                <p className="text-2xl font-semibold text-on-surface mb-2">
-                  {value}
-                  {unit && <span className="text-base font-normal text-on-surface-variant ml-1">{unit}</span>}
-                </p>
-
-                {measurement.referenceRange && (
-                  <p className="text-xs text-on-surface-variant">
-                    Ref: {measurement.referenceRange}
-                  </p>
-                )}
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4">
+                {items.map((measurement, index) => (
+                  <MeasurementCard
+                    key={measurement.id ?? `${measurement.name}-${index}`}
+                    measurement={measurement}
+                  />
+                ))}
               </div>
-            )
-          })}
-        </div>
+            </section>
+          )
+        })
       )}
     </div>
   )
