@@ -1,12 +1,13 @@
 const express = require("express");
 const upload = require("../middleware/upload");
+const { protect } = require("../middleware/authMiddleware");
 const { extractMedicalReportText } = require("../services/extractionService");
 const { cleanupFile } = require("../utils/fileCleanup");
 const logger = require("../utils/logger");
 
 const router = express.Router();
 
-router.post("/", upload.single("report"), async (req, res, next) => {
+router.post("/", protect, upload.single("report"), async (req, res, next) => {
   if (!req.file) {
     return res.status(400).json({
       success: false,

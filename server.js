@@ -4,6 +4,9 @@ const express = require("express");
 const multer = require("multer");
 const uploadRouter = require("./routes/upload");
 const interpretRouter = require("./routes/interpret");
+const reportsRoute = require("./routes/reports");
+const authRoutes = require("./routes/auth");
+const connectDB = require("./config/db");
 const logger = require("./utils/logger");
 
 const app = express();
@@ -21,6 +24,8 @@ app.get("/health", (_req, res) => {
 
 app.use("/api/upload", uploadRouter);
 app.use("/api/interpret", interpretRouter);
+app.use("/api/reports", reportsRoute);
+app.use("/api/auth", authRoutes);
 
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {
@@ -45,6 +50,13 @@ app.use((err, _req, res, _next) => {
   });
 });
 
-app.listen(PORT, () => {
-  logger.info(`Server running on http://localhost:${PORT}`);
-});
+connectDB()
+  .then(() => {
+    app.listen(PORT, () => {
+      logger.info(`Server running on http://localhost:${PORT}`);
+    });
+  })
+  .catch((err) => {
+    logger.error("MongoDB connection failed", { error: err.message });
+    process.exit(1);
+  });

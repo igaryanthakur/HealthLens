@@ -30,6 +30,17 @@ const stubInterpretation = {
   recommendations: ["Eat iron-rich foods like spinach and lentils."],
 };
 
+const stubReportId = "507f1f77bcf86cd799439011";
+const stubUserId = "507f1f77bcf86cd799439099";
+
+function createTestDeps(overrides = {}) {
+  return {
+    generateInterpretation: async () => stubInterpretation,
+    saveReport: async () => ({ _id: stubReportId }),
+    ...overrides,
+  };
+}
+
 test("interpret handler returns aiPrompt and data for valid structured body", async () => {
   const sample = [
     "Customer Since: 25/Apr/2026",
@@ -38,13 +49,7 @@ test("interpret handler returns aiPrompt and data for valid structured body", as
   const { structured } = filterClinicalData(sample, { ocrPages: [] });
   const res = createMockRes();
 
-  await interpretHandler(
-    { body: { structured } },
-    res,
-    {
-      generateInterpretation: async () => stubInterpretation,
-    },
-  );
+  await interpretHandler({ body: { structured }, user: { id: stubUserId } }, res, createTestDeps());
 
   assert.equal(res.statusCode, 200);
   assert.equal(res.body.success, true);
@@ -54,6 +59,27 @@ test("interpret handler returns aiPrompt and data for valid structured body", as
   assert.equal(res.body.data.summary, stubInterpretation.summary);
   assert.deepEqual(res.body.data.findings, stubInterpretation.findings);
   assert.deepEqual(res.body.data.recommendations, stubInterpretation.recommendations);
+  assert.equal(res.body.reportId, stubReportId);
+});
+
+test("interpret handler returns 500 when report save fails", async () => {
+  const sample = ["Haemoglobin (HB) : 8.6 g/dL 12-15"].join("\n");
+  const { structured } = filterClinicalData(sample, { ocrPages: [] });
+  const res = createMockRes();
+
+  await interpretHandler(
+    { body: { structured }, user: { id: stubUserId } },
+    res,
+    createTestDeps({
+      saveReport: async () => {
+        throw new Error("Database connection lost");
+      },
+    }),
+  );
+
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.body.success, false);
+  assert.match(res.body.message, /Database connection lost/);
 });
 
 test("interpret handler returns 400 when structured is missing", async () => {

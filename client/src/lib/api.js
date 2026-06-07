@@ -1,3 +1,5 @@
+const AUTH_TOKEN_KEY = 'healthlens_auth_token';
+
 async function parseJsonResponse(res) {
   const json = await res.json().catch(() => ({}));
 
@@ -8,12 +10,58 @@ async function parseJsonResponse(res) {
   return json;
 }
 
+export function getAuthToken() {
+  return localStorage.getItem(AUTH_TOKEN_KEY);
+}
+
+export function setAuthToken(token) {
+  localStorage.setItem(AUTH_TOKEN_KEY, token);
+}
+
+export function clearAuthToken() {
+  localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+function authHeaders() {
+  const token = getAuthToken();
+  if (!token) {
+    return {};
+  }
+
+  return { Authorization: `Bearer ${token}` };
+}
+
+export async function registerUser({ name, email, password }) {
+  const res = await fetch('/api/auth/register', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ name, email, password }),
+  });
+
+  const json = await parseJsonResponse(res);
+  setAuthToken(json.token);
+  return json;
+}
+
+export async function loginUser({ email, password }) {
+  const res = await fetch('/api/auth/login', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ email, password }),
+  });
+
+  const json = await parseJsonResponse(res);
+  setAuthToken(json.token);
+  return json;
+}
+
 export async function uploadReport(file) {
   const formData = new FormData();
   formData.append('report', file);
 
   const res = await fetch('/api/upload', {
     method: 'POST',
+    headers: authHeaders(),
     body: formData,
   });
 
@@ -23,8 +71,19 @@ export async function uploadReport(file) {
 export async function interpretStructured(structured) {
   const res = await fetch('/api/interpret', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
     body: JSON.stringify({ structured }),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function fetchReportHistory() {
+  const res = await fetch('/api/reports/history', {
+    headers: authHeaders(),
   });
 
   return parseJsonResponse(res);
