@@ -1,12 +1,14 @@
 import { lazy, Suspense } from 'react'
-import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom'
+import { BrowserRouter, Routes, Route, Navigate, useLocation } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import Navbar from './components/Layout/Navbar'
+import Footer from './components/Layout/Footer'
 import Landing from './pages/Landing'
 import Login from './pages/Login'
 import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
+import Chat from './pages/Chat'
 import { getAuthToken } from './lib/api'
 
 const Vault = lazy(() => import('./pages/Vault'))
@@ -27,10 +29,14 @@ function ProtectedRoute({ children }) {
   return children
 }
 
-export default function App() {
+function AppContent() {
+  const { pathname } = useLocation()
+  const hideGlobalFooter = ['/', '/login', '/register', '/chat'].includes(pathname)
+  const hideNavbar = ['/login', '/register'].includes(pathname)
+
   return (
-    <BrowserRouter>
-      <Navbar />
+    <>
+      {!hideNavbar && <Navbar />}
       <Routes>
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
@@ -61,7 +67,24 @@ export default function App() {
             </ProtectedRoute>
           }
         />
+        <Route
+          path="/chat"
+          element={
+            <ProtectedRoute>
+              <Chat />
+            </ProtectedRoute>
+          }
+        />
       </Routes>
+      {!hideGlobalFooter && <Footer />}
+    </>
+  )
+}
+
+export default function App() {
+  return (
+    <BrowserRouter>
+      <AppContent />
     </BrowserRouter>
   )
 }

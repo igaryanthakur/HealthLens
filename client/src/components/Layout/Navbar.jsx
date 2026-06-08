@@ -40,6 +40,12 @@ export default function Navbar() {
               >
                 Vault
               </Link>
+              <Link
+                to="/chat"
+                className="text-sm text-on-surface-variant hover:text-primary transition-colors"
+              >
+                Assistant
+              </Link>
             </>
           ) : (
             PUBLIC_LINKS.map((link) => (

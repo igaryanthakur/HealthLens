@@ -79,3 +79,56 @@ test("generateInterpretation prepends profile context when provided", async () =
   assert.match(capturedText, /Here is the structured medical data to interpret:/);
   assert.match(capturedText, /MEDICAL REPORT CONTEXT:\n- Report Type: CBC/);
 });
+
+test("generateChatResponse returns plain text on successful Gemini call", async () => {
+  const { generateChatResponse } = require("../services/aiService");
+
+  const profile = { gender: "female", dateOfBirth: "1990-01-01" };
+  const history = [{ reportType: "CBC", reportDate: "2026-04-25", measurements: [] }];
+
+  let capturedMessage = "";
+  const mockModel = {
+    generateContent: async (userMessage) => {
+      capturedMessage = userMessage;
+      return {
+        response: {
+          text: () => "  Your triglycerides were 165 mg/dL.  ",
+        },
+      };
+    },
+  };
+
+  const result = await generateChatResponse(
+    "What are my lipids?",
+    profile,
+    history,
+    {
+      getModel: (systemInstruction) => {
+        assert.match(systemInstruction, /Patient Profile:/);
+        assert.match(systemInstruction, /"gender":"female"/);
+        assert.match(systemInstruction, /Medical History \(Chronological\):/);
+        assert.match(systemInstruction, /"reportType":"CBC"/);
+        return mockModel;
+      },
+    },
+  );
+
+  assert.equal(capturedMessage, "What are my lipids?");
+  assert.equal(result, "Your triglycerides were 165 mg/dL.");
+});
+
+test("generateChatResponse throws when GEMINI_API_KEY is missing", async () => {
+  const originalKey = process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+
+  const { generateChatResponse } = require("../services/aiService");
+
+  await assert.rejects(
+    () => generateChatResponse("Hi", {}, []),
+    { message: "Failed to generate chat response." },
+  );
+
+  if (originalKey !== undefined) {
+    process.env.GEMINI_API_KEY = originalKey;
+  }
+});

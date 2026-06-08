@@ -1,16 +1,50 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useNavigate } from 'react-router-dom'
-import { Loader2 } from 'lucide-react'
+import {
+  Activity,
+  AlertTriangle,
+  ArrowUpDown,
+  BadgeCheck,
+  CalendarClock,
+  ChevronRight,
+  FileText,
+  ListFilter,
+  Loader2,
+  Search,
+} from 'lucide-react'
 import { fetchReportHistory } from '../lib/api'
 
-function formatReportDate(value) {
+function formatReportDateLong(value) {
   const date = new Date(value)
   if (Number.isNaN(date.getTime())) return '—'
   return date.toLocaleDateString('en-US', {
-    year: 'numeric',
     month: 'short',
     day: 'numeric',
+    year: 'numeric',
   })
+}
+
+function getDateParts(value) {
+  const date = new Date(value)
+  if (Number.isNaN(date.getTime())) {
+    return { day: '—', month: '—' }
+  }
+  return {
+    day: date.getDate(),
+    month: date.toLocaleDateString('en-US', { month: 'short' }).toUpperCase(),
+  }
+}
+
+function reportNeedsAttention(report) {
+  return (report.measurements ?? []).some(
+    (m) => m.status === 'low' || m.status === 'high',
+  )
+}
+
+function countAbnormalMeasurements(report) {
+  return (report.measurements ?? []).filter(
+    (m) => m.status === 'low' || m.status === 'high',
+  ).length
 }
 
 export default function Vault() {
@@ -18,6 +52,8 @@ export default function Vault() {
   const [reports, setReports] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState(null)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [sortDesc, setSortDesc] = useState(true)
 
   useEffect(() => {
     let cancelled = false
@@ -43,76 +79,236 @@ export default function Vault() {
     }
   }, [])
 
+  const attentionCount = useMemo(
+    () => reports.filter(reportNeedsAttention).length,
+    [reports],
+  )
+
+  const latestReportDate = useMemo(() => {
+    if (reports.length === 0) return '—'
+    const sorted = [...reports].sort(
+      (a, b) => new Date(b.reportDate) - new Date(a.reportDate),
+    )
+    return formatReportDateLong(sorted[0].reportDate)
+  }, [reports])
+
+  const displayedReports = useMemo(() => {
+    const query = searchQuery.trim().toLowerCase()
+    let list = [...reports]
+
+    list.sort((a, b) => {
+      const diff = new Date(a.reportDate) - new Date(b.reportDate)
+      return sortDesc ? -diff : diff
+    })
+
+    if (!query) return list
+
+    return list.filter((report) => {
+      const title = (report.reportType || 'Report').toLowerCase()
+      const date = formatReportDateLong(report.reportDate).toLowerCase()
+      return title.includes(query) || date.includes(query)
+    })
+  }, [reports, searchQuery, sortDesc])
+
+  function openReport(reportId) {
+    navigate(`/dashboard?reportId=${reportId}`)
+  }
+
+  function handleCardKeyDown(event, reportId) {
+    if (event.key === 'Enter' || event.key === ' ') {
+      event.preventDefault()
+      openReport(reportId)
+    }
+  }
+
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-[1440px] mx-auto p-6 md:p-10">
-        <div className="mb-8">
-          <h1 className="text-2xl font-semibold text-on-surface">Health Vault</h1>
-          <p className="text-sm text-on-surface-variant mt-1">
-            Your personal archive of processed health reports.
+    <main className="min-h-screen">
+      <div className="max-w-[1280px] mx-auto px-margin-desktop pb-20">
+        <header className="pt-12 mb-8">
+          <h2 className="text-4xl font-semibold text-[#0b1c30] tracking-tight mb-2">
+            Your Health Vault
+          </h2>
+          <p className="text-[#3d4947] text-lg font-body-lg">
+            A complete, chronological archive of your medical history and AI analyses.
           </p>
-        </div>
+        </header>
 
-        {loading && (
-          <div className="flex items-center justify-center py-24">
-            <Loader2 className="animate-spin text-primary" size={32} />
-          </div>
-        )}
-
-        {!loading && error && (
-          <p className="text-sm text-error text-center py-24">{error}</p>
-        )}
-
-        {!loading && !error && reports.length === 0 && (
-          <div className="text-center py-24 bg-surface-container-lowest rounded-2xl border border-outline-variant/20 shadow-ambient">
-            <p className="text-on-surface-variant mb-4">No reports in your vault yet.</p>
-            <Link
-              to="/dashboard"
-              className="inline-flex items-center rounded-lg bg-primary text-on-primary px-4 py-2 text-sm font-medium hover:opacity-90 transition-opacity"
-            >
-              Upload your first report
-            </Link>
-          </div>
-        )}
-
-        {!loading && !error && reports.length > 0 && (
-          <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/20 shadow-ambient overflow-hidden">
-            <div className="overflow-x-auto">
-              <table className="w-full text-sm">
-                <thead>
-                  <tr className="border-b border-outline-variant/20 bg-surface-container-low">
-                    <th className="text-left px-6 py-3 font-medium text-on-surface-variant">Date</th>
-                    <th className="text-left px-6 py-3 font-medium text-on-surface-variant">Type</th>
-                    <th className="text-left px-6 py-3 font-medium text-on-surface-variant">Vitality Score</th>
-                    <th className="text-right px-6 py-3 font-medium text-on-surface-variant">Action</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {[...reports].reverse().map((report) => (
-                    <tr
-                      key={report._id}
-                      className="border-b border-outline-variant/10 last:border-b-0 hover:bg-surface-container-low/50"
-                    >
-                      <td className="px-6 py-4 text-on-surface">{formatReportDate(report.reportDate)}</td>
-                      <td className="px-6 py-4 text-on-surface">{report.reportType || 'Report'}</td>
-                      <td className="px-6 py-4 text-on-surface">{report.vitalityScore ?? '—'}</td>
-                      <td className="px-6 py-4 text-right">
-                        <button
-                          type="button"
-                          onClick={() => navigate(`/dashboard?reportId=${report._id}`)}
-                          className="inline-flex items-center rounded-lg border border-outline-variant/40 bg-white text-primary px-3 py-1.5 text-sm font-medium hover:bg-surface-container-low transition-colors"
-                        >
-                          View Dashboard
-                        </button>
-                      </td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-10">
+          <div className="bg-white p-6 rounded-2xl shadow-ambient flex items-center gap-4 border border-outline-variant/10">
+            <div className="w-12 h-12 bg-primary/10 rounded-full flex items-center justify-center text-primary">
+              <FileText />
+            </div>
+            <div>
+              <p className="text-on-surface font-semibold text-xl">
+                {loading ? '—' : `${reports.length} Total Records`}
+              </p>
+              <p className="text-label-sm text-outline">Stored securely</p>
             </div>
           </div>
-        )}
+          <div className="bg-white p-6 rounded-2xl shadow-ambient flex items-center gap-4 border border-outline-variant/10">
+            <div className="w-12 h-12 bg-secondary/10 rounded-full flex items-center justify-center text-secondary">
+              <CalendarClock />
+            </div>
+            <div>
+              <p className="text-on-surface font-semibold text-xl">
+                {loading ? '—' : latestReportDate}
+              </p>
+              <p className="text-label-sm text-outline">Last record upload</p>
+            </div>
+          </div>
+          <div className="bg-white p-6 rounded-2xl shadow-ambient flex items-center gap-4 border border-outline-variant/10">
+            <div className="w-12 h-12 bg-tertiary/10 rounded-full flex items-center justify-center text-tertiary">
+              <Activity />
+            </div>
+            <div>
+              <p className="text-on-surface font-semibold text-xl">
+                {loading ? '—' : `${attentionCount} Conditions`}
+              </p>
+              <p className="text-label-sm text-outline">Chronic vitals tracked</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="flex flex-col md:flex-row gap-4 items-center justify-between mb-8">
+          <div className="relative w-full md:w-[400px]">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-outline" size={20} />
+            <input
+              className="w-full pl-12 pr-4 py-3 bg-white border border-outline-variant rounded-full focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all shadow-sm outline-none"
+              placeholder="Search by test type or date..."
+              type="text"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+            />
+          </div>
+          <div className="flex gap-3 w-full md:w-auto">
+            <button
+              type="button"
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-outline-variant rounded-full text-on-surface-variant font-label-md hover:bg-surface-variant/30 transition-all"
+            >
+              <ListFilter size={20} />
+              Filter
+            </button>
+            <button
+              type="button"
+              onClick={() => setSortDesc((prev) => !prev)}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-outline-variant rounded-full text-on-surface-variant font-label-md hover:bg-surface-variant/30 transition-all"
+            >
+              <ArrowUpDown size={20} />
+              Sort
+            </button>
+          </div>
+        </div>
+
+        <div className="space-y-4">
+          {loading && (
+            <div className="flex items-center justify-center py-24">
+              <Loader2 className="animate-spin text-primary" size={32} />
+            </div>
+          )}
+
+          {!loading && error && (
+            <p className="text-sm text-error text-center py-24">{error}</p>
+          )}
+
+          {!loading && !error && reports.length === 0 && (
+            <div className="text-center py-24 bg-white rounded-2xl border border-outline-variant/10 shadow-ambient">
+              <p className="text-on-surface-variant mb-4">No reports in your vault yet.</p>
+              <Link
+                to="/dashboard"
+                className="inline-flex items-center rounded-full bg-primary text-on-primary px-8 py-3 font-semibold hover:opacity-90 transition-opacity"
+              >
+                Upload your first report
+              </Link>
+            </div>
+          )}
+
+          {!loading &&
+            !error &&
+            reports.length > 0 &&
+            displayedReports.length === 0 && (
+              <div className="text-center py-24 bg-white rounded-2xl border border-outline-variant/10 shadow-ambient">
+                <p className="text-on-surface-variant">No records match your search.</p>
+              </div>
+            )}
+
+          {!loading &&
+            !error &&
+            displayedReports.map((report) => {
+              const needsAttention = reportNeedsAttention(report)
+              const abnormalCount = countAbnormalMeasurements(report)
+              const biomarkerCount = (report.measurements ?? []).length
+              const { day, month } = getDateParts(report.reportDate)
+              const title = report.reportType || 'Report'
+
+              if (needsAttention) {
+                return (
+                  <div
+                    key={report._id}
+                    role="button"
+                    tabIndex={0}
+                    onClick={() => openReport(report._id)}
+                    onKeyDown={(e) => handleCardKeyDown(e, report._id)}
+                    className="group relative bg-white rounded-2xl p-4 border border-error/10 shadow-ambient flex items-center gap-6 cursor-pointer hover:border-error/30 transition-all hover:bg-error-container/10 active:scale-[0.99]"
+                  >
+                    <div className="w-16 h-16 bg-error-container/50 rounded-xl flex flex-col items-center justify-center text-error shrink-0">
+                      <span className="text-2xl font-bold leading-none">{day}</span>
+                      <span className="text-xs font-semibold uppercase">{month}</span>
+                    </div>
+                    <div className="flex-1">
+                      <h4 className="text-lg font-semibold text-on-surface group-hover:text-error transition-colors">
+                        {title}
+                      </h4>
+                      <p className="text-on-surface-variant text-sm flex items-center gap-1.5">
+                        <AlertTriangle className="text-secondary" size={16} />
+                        Analyzed by HealthLens AI • {abnormalCount} High Value
+                        {abnormalCount !== 1 ? 's' : ''}
+                      </p>
+                    </div>
+                    <div className="flex items-center gap-6">
+                      <span className="hidden md:inline-flex px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold uppercase tracking-wider">
+                        Attention Needed
+                      </span>
+                      <ChevronRight className="text-outline group-hover:translate-x-1 transition-transform" />
+                    </div>
+                  </div>
+                )
+              }
+
+              return (
+                <div
+                  key={report._id}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => openReport(report._id)}
+                  onKeyDown={(e) => handleCardKeyDown(e, report._id)}
+                  className="group relative bg-white rounded-2xl p-4 border border-outline-variant/10 shadow-ambient flex items-center gap-6 cursor-pointer hover:border-primary/30 transition-all hover:bg-surface-bright active:scale-[0.99]"
+                >
+                  <div className="w-16 h-16 bg-primary-fixed/30 rounded-xl flex flex-col items-center justify-center text-primary-container shrink-0">
+                    <span className="text-2xl font-bold leading-none">{day}</span>
+                    <span className="text-xs font-semibold uppercase">{month}</span>
+                  </div>
+                  <div className="flex-1">
+                    <h4 className="text-lg font-semibold text-on-surface group-hover:text-primary transition-colors">
+                      {title}
+                    </h4>
+                    <p className="text-on-surface-variant text-sm flex items-center gap-1.5">
+                      <BadgeCheck size={16} />
+                      Analyzed by HealthLens AI • {biomarkerCount} Biomarker
+                      {biomarkerCount !== 1 ? 's' : ''}
+                    </p>
+                  </div>
+                  <div className="flex items-center gap-6">
+                    <span className="hidden md:inline-flex px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-bold uppercase tracking-wider">
+                      Stable
+                    </span>
+                    <ChevronRight className="text-outline group-hover:translate-x-1 transition-transform" />
+                  </div>
+                </div>
+              )
+            })}
+        </div>
+
       </div>
-    </div>
+    </main>
   )
 }

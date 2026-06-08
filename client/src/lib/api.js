@@ -105,6 +105,19 @@ export async function fetchCurrentUser() {
   return parseJsonResponse(res);
 }
 
+export async function sendChatMessage(message) {
+  const res = await fetch('/api/chat', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ message }),
+  });
+
+  return parseJsonResponse(res);
+}
+
 export async function updateUserProfile(profile) {
   const res = await fetch('/api/users/profile', {
     method: 'PUT',

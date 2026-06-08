@@ -92,6 +92,55 @@ async function generateInterpretation(aiPrompt, deps = {}) {
   }
 }
 
+function buildChatSystemInstruction(userProfile, userHistory) {
+  return `You are HealthLens AI, an empathetic and highly intelligent clinical assistant. You have access to the user's secure Health Vault.
+
+Patient Profile: ${JSON.stringify(userProfile ?? {})}
+
+Medical History (Chronological): ${JSON.stringify(userHistory ?? [])}
+
+Answer the user's prompt using ONLY the provided data. If they ask something outside their data, politely inform them you can only discuss their uploaded records. Be concise, reassuring, and highly specific to their vitals. Do not provide medical diagnoses; advise consulting a doctor for critical issues.`;
+}
+
+function createChatModel(systemInstruction) {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is missing from the environment variables.");
+  }
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+  return genAI.getGenerativeModel({
+    model: "gemini-flash-latest",
+    systemInstruction,
+  });
+}
+
+/**
+ * Generates a conversational plain-text reply for the chat assistant.
+ * @param {string} userMessage - The patient's chat message.
+ * @param {Object} userProfile - Nested profile subdocument from User.
+ * @param {Array} userHistory - Chronological report documents from Health Vault.
+ * @returns {Promise<string>}
+ */
+async function generateChatResponse(userMessage, userProfile, userHistory, deps = {}) {
+  try {
+    const systemInstruction = buildChatSystemInstruction(userProfile, userHistory);
+    const model = deps.getModel
+      ? deps.getModel(systemInstruction)
+      : createChatModel(systemInstruction);
+
+    const result = await model.generateContent(userMessage);
+
+    return result.response.text().trim();
+  } catch (error) {
+    console.error("HealthLens AI Chat Error:", error.message);
+    throw new Error("Failed to generate chat response.");
+  }
+}
+
 module.exports = {
   generateInterpretation,
+  generateChatResponse,
+  buildChatSystemInstruction,
+  createChatModel,
 };
