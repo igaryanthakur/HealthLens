@@ -60,7 +60,24 @@ export default function Chat() {
         },
       ])
     } catch (err) {
-      setError(err.message || 'Failed to get a response. Please try again.')
+      const status = err.status
+      if (status === 429) {
+        setError(
+          "You've reached the AI request limit. Please wait a few minutes before sending more messages.",
+        )
+      } else if (status === 503) {
+        setMessages((prev) => [
+          ...prev,
+          {
+            id: `assistant-${Date.now()}`,
+            role: 'assistant',
+            content:
+              'AI assistant is temporarily unavailable. Your health records are still saved safely.',
+          },
+        ])
+      } else {
+        setError(err.message || 'Failed to get a response. Please try again.')
+      }
     } finally {
       setIsTyping(false)
     }
@@ -157,6 +174,7 @@ export default function Chat() {
             className="flex-1 border-none focus:ring-0 bg-transparent text-body-md font-body-md px-md text-on-surface placeholder-outline-variant"
             placeholder="Ask about your health history..."
             type="text"
+            maxLength={1500}
             value={message}
             onChange={(e) => setMessage(e.target.value)}
             disabled={isTyping}

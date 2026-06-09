@@ -4,6 +4,20 @@ const { protect } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
+// documentTypes that may be saved via the reviewed-document path, mapped to the
+// legacy human-readable reportType slot.
+const REPORT_TYPE_BY_DOCUMENT = {
+  prescription: "PRESCRIPTION",
+  scan_report: "SCAN_REPORT",
+  discharge_summary: "DISCHARGE_SUMMARY",
+  typed_note: "TYPED_NOTE",
+  unknown: "DOCUMENT",
+};
+
+function resolveDocumentType(documentType) {
+  return REPORT_TYPE_BY_DOCUMENT[documentType] ? documentType : "prescription";
+}
+
 function sanitizeMedications(medications = []) {
   return medications
     .filter((m) => m && typeof m.name === "string" && m.name.trim())
@@ -30,52 +44,90 @@ function sanitizeDiagnoses(diagnoses = []) {
     }));
 }
 
+function sanitizeSymptoms(symptoms = []) {
+  return (Array.isArray(symptoms) ? symptoms : [])
+    .filter((s) => s && typeof s.description === "string" && s.description.trim())
+    .map((s) => ({
+      description: s.description.trim(),
+      confidence: typeof s.confidence === "number" ? s.confidence : undefined,
+      uncertain: Boolean(s.uncertain),
+    }));
+}
+
 function sanitizeStringList(list = []) {
   return (Array.isArray(list) ? list : [])
     .map((s) => (typeof s === "string" ? s.trim() : ""))
     .filter(Boolean);
 }
 
-function buildPrescriptionSummary(medications, diagnoses) {
-  const medCount = medications.length;
-  const dxCount = diagnoses.length;
+function buildDocumentSummary(documentType, { medications, diagnoses, symptoms }) {
+  const labels = {
+    prescription: "Prescription",
+    scan_report: "Scan report",
+    discharge_summary: "Discharge summary",
+    typed_note: "Clinical note",
+    unknown: "Document",
+  };
+  const label = labels[documentType] || "Document";
+
   const parts = [];
-  parts.push(`${medCount} medication${medCount === 1 ? "" : "s"}`);
-  if (dxCount) parts.push(`${dxCount} diagnosis${dxCount === 1 ? "" : "es"}`);
-  return `Prescription recorded: ${parts.join(", ")}. Please verify these details with your doctor or pharmacist before acting on them.`;
+  if (medications.length) {
+    parts.push(`${medications.length} medication${medications.length === 1 ? "" : "s"}`);
+  }
+  if (diagnoses.length) {
+    parts.push(`${diagnoses.length} diagnosis${diagnoses.length === 1 ? "" : "es"}`);
+  }
+  if (symptoms.length) {
+    parts.push(`${symptoms.length} symptom${symptoms.length === 1 ? "" : "s"}`);
+  }
+
+  const detail = parts.length ? ` ${parts.join(", ")} recorded.` : "";
+  return `${label} saved.${detail} Please verify these details with your doctor or pharmacist before acting on them.`;
 }
 
-async function savePrescriptionHandler(req, res, deps = {}) {
+async function saveDocumentHandler(req, res, deps = {}) {
   try {
     const saveReport = deps.saveReport ?? (async (doc) => doc.save());
     const body = req.body || {};
 
+    const documentType = resolveDocumentType(body.documentType);
     const medications = sanitizeMedications(body.medications);
     const diagnoses = sanitizeDiagnoses(body.diagnoses);
+    const symptoms = sanitizeSymptoms(body.symptoms);
     const doctorAdvice = sanitizeStringList(body.doctorAdvice);
     const testsAdvised = sanitizeStringList(body.testsAdvised);
 
-    if (!medications.length && !diagnoses.length && !doctorAdvice.length) {
+    if (
+      !medications.length &&
+      !diagnoses.length &&
+      !symptoms.length &&
+      !doctorAdvice.length
+    ) {
       return res.status(400).json({
         success: false,
         message:
-          "A prescription must include at least one medication, diagnosis, or advice item.",
+          "A document must include at least one medication, diagnosis, symptom, or advice item.",
       });
     }
 
     const report = new Report({
       userId: req.user.id,
-      reportType: "PRESCRIPTION",
-      documentType: "prescription",
+      reportType: REPORT_TYPE_BY_DOCUMENT[documentType],
+      documentType,
       reportDate: body.reportDate ? new Date(body.reportDate) : undefined,
       measurements: [],
       medications,
       diagnoses,
+      symptoms,
       doctorAdvice,
       testsAdvised,
-      provenance: body.provenance || { extractionMethod: "gemini-vision" },
+      provenance: body.provenance || { extractionMethod: "gemini-text" },
       aiInterpretation: {
-        summary: buildPrescriptionSummary(medications, diagnoses),
+        summary: buildDocumentSummary(documentType, {
+          medications,
+          diagnoses,
+          symptoms,
+        }),
         findings: [],
         recommendations: [],
       },
@@ -88,7 +140,7 @@ async function savePrescriptionHandler(req, res, deps = {}) {
       reportId: saved._id.toString(),
     });
   } catch (error) {
-    console.error("Prescription Save Route Error:", error);
+    console.error("Document Save Route Error:", error);
     return res.status(500).json({
       success: false,
       message: error.message,
@@ -96,7 +148,14 @@ async function savePrescriptionHandler(req, res, deps = {}) {
   }
 }
 
+// Backward-compatible prescription save: forces documentType to prescription.
+async function savePrescriptionHandler(req, res, deps = {}) {
+  req.body = { ...(req.body || {}), documentType: "prescription" };
+  return saveDocumentHandler(req, res, deps);
+}
+
 router.post("/", protect, savePrescriptionHandler);
 
 module.exports = router;
 module.exports.savePrescriptionHandler = savePrescriptionHandler;
+module.exports.saveDocumentHandler = saveDocumentHandler;

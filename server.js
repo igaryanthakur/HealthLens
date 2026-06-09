@@ -8,6 +8,13 @@ const reportsRoute = require("./routes/reports");
 const authRoutes = require("./routes/auth");
 const connectDB = require("./config/db");
 const logger = require("./utils/logger");
+const {
+  standardApiLimiter,
+  authLimiter,
+  uploadLimiter,
+  aiInterpretLimiter,
+  chatLimiter,
+} = require("./middleware/rateLimiters");
 
 const app = express();
 const PORT = Number(process.env.PORT || 5000);
@@ -22,13 +29,16 @@ app.get("/health", (_req, res) => {
   });
 });
 
-app.use("/api/upload", uploadRouter);
-app.use("/api/interpret", interpretRouter);
+app.use("/api", standardApiLimiter);
+app.use("/api/auth", authLimiter, authRoutes);
+app.use("/api/upload", uploadLimiter, uploadRouter);
+app.use("/api/interpret", aiInterpretLimiter, interpretRouter);
 app.use("/api/prescriptions", require("./routes/prescription"));
+app.use("/api/documents", require("./routes/document"));
 app.use("/api/reports", reportsRoute);
-app.use("/api/auth", authRoutes);
+app.use("/api/repository", require("./routes/repository"));
 app.use("/api/users", require("./routes/users"));
-app.use("/api/chat", require("./routes/chat"));
+app.use("/api/chat", chatLimiter, require("./routes/chat"));
 
 app.use((err, _req, res, _next) => {
   if (err instanceof multer.MulterError && err.code === "LIMIT_FILE_SIZE") {

@@ -31,6 +31,7 @@ export function reportToDashboardPayload(report) {
       measurements: report.measurements ?? [],
       medications: report.medications ?? [],
       diagnoses: report.diagnoses ?? [],
+      symptoms: report.symptoms ?? [],
       doctorAdvice: report.doctorAdvice ?? [],
       testsAdvised: report.testsAdvised ?? [],
     },

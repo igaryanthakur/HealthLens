@@ -1,5 +1,50 @@
 const { GoogleGenerativeAI, SchemaType } = require("@google/generative-ai");
 
+const AI_TIMEOUT_MS = {
+  interpretation: 20_000,
+  chat: 15_000,
+  prescriptionVision: 30_000,
+  documentEntity: 20_000,
+};
+
+const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
+
+function isRetryableAiError(error) {
+  const status = error?.status ?? error?.statusCode;
+  if (status != null && RETRYABLE_STATUSES.has(Number(status))) {
+    return true;
+  }
+  const message = String(error?.message || "");
+  return message.includes("timed out after");
+}
+
+async function withTimeout(promise, timeoutMs, label) {
+  let timeoutId;
+  const timeoutPromise = new Promise((_, reject) => {
+    timeoutId = setTimeout(() => {
+      reject(new Error(`${label} timed out after ${timeoutMs}ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    return await Promise.race([promise, timeoutPromise]);
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
+async function callWithSingleRetry(fn, label) {
+  try {
+    return await fn();
+  } catch (error) {
+    if (!isRetryableAiError(error)) {
+      throw error;
+    }
+    await new Promise((resolve) => setTimeout(resolve, 800));
+    return fn();
+  }
+}
+
 /**
  * Initializes and returns the Gemini model with strict JSON formatting rules.
  */
@@ -75,14 +120,22 @@ async function generateInterpretation(aiPrompt, deps = {}) {
     const profilePrefix = deps.profileContext ? `${deps.profileContext}\n\n` : "";
     const userMessage = `${profilePrefix}Here is the structured medical data to interpret:\n\n${aiPrompt}`;
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [{ text: userMessage }],
-        },
-      ],
-    });
+    const result = await callWithSingleRetry(
+      () =>
+        withTimeout(
+          model.generateContent({
+            contents: [
+              {
+                role: "user",
+                parts: [{ text: userMessage }],
+              },
+            ],
+          }),
+          AI_TIMEOUT_MS.interpretation,
+          "AI interpretation",
+        ),
+      "AI interpretation",
+    );
 
     const responseText = result.response.text();
     return JSON.parse(responseText);
@@ -192,19 +245,27 @@ async function extractPrescriptionFromImage(imageBase64, mimeType, deps = {}) {
       ? `\n\nRough OCR text (may be inaccurate, use only as a hint):\n${deps.textHint}`
       : "";
 
-    const result = await model.generateContent({
-      contents: [
-        {
-          role: "user",
-          parts: [
-            {
-              text: `Read this prescription and extract its contents into the required JSON schema.${hint}`,
-            },
-            { inlineData: { data: imageBase64, mimeType } },
-          ],
-        },
-      ],
-    });
+    const result = await callWithSingleRetry(
+      () =>
+        withTimeout(
+          model.generateContent({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: `Read this prescription and extract its contents into the required JSON schema.${hint}`,
+                  },
+                  { inlineData: { data: imageBase64, mimeType } },
+                ],
+              },
+            ],
+          }),
+          AI_TIMEOUT_MS.prescriptionVision,
+          "Prescription vision",
+        ),
+      "Prescription vision",
+    );
 
     const parsed = JSON.parse(result.response.text());
     return {
@@ -216,6 +277,155 @@ async function extractPrescriptionFromImage(imageBase64, mimeType, deps = {}) {
   } catch (error) {
     console.error("HealthLens AI Prescription Vision Error:", error.message);
     throw new Error("Failed to read prescription image.");
+  }
+}
+
+const ENTITY_SYSTEM_INSTRUCTION =
+  "You are HealthLens AI's clinical document reader. You are given the extracted text of a PRINTED/TYPED medical document (a discharge summary, radiology/scan report, or typed clinical note). Transcribe the medications, diagnoses, symptoms, doctor's advice, and tests advised exactly as written. NEVER invent, infer, or 'correct' a drug or diagnosis to one you think is more likely. Do NOT extract numeric lab measurements/vitals (those are handled by a separate deterministic pipeline) - leave them out entirely. For every medication, diagnosis, and symptom, provide a confidence between 0 and 1 reflecting how clearly it was stated, and set uncertain=true whenever you are not confident. If a field is not present, omit it rather than guessing.";
+
+/**
+ * Builds the Gemini text model used to read printed clinical documents.
+ * Separate from getAiModel/getPrescriptionModel so each schema stays isolated.
+ */
+const getEntityModel = () => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is missing from the environment variables.");
+  }
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+
+  return genAI.getGenerativeModel({
+    model: process.env.GEMINI_TEXT_MODEL || "gemini-flash-latest",
+    systemInstruction: ENTITY_SYSTEM_INSTRUCTION,
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.OBJECT,
+        properties: {
+          medications: {
+            type: SchemaType.ARRAY,
+            description: "Each medication mentioned in the document, as written.",
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                name: { type: SchemaType.STRING, description: "Drug/brand name" },
+                dosage: { type: SchemaType.STRING, description: "Strength, e.g. 500 mg" },
+                frequency: {
+                  type: SchemaType.STRING,
+                  description: "How often, e.g. twice daily / BD / OD",
+                },
+                duration: { type: SchemaType.STRING, description: "How long, e.g. 5 days" },
+                route: { type: SchemaType.STRING, description: "Oral, topical, etc." },
+                confidence: {
+                  type: SchemaType.NUMBER,
+                  description: "Clarity confidence 0-1",
+                },
+                uncertain: {
+                  type: SchemaType.BOOLEAN,
+                  description: "True when the reading is not confident",
+                },
+              },
+              required: ["name"],
+            },
+          },
+          diagnoses: {
+            type: SchemaType.ARRAY,
+            description: "Conditions or diagnoses noted in the document.",
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                condition: { type: SchemaType.STRING },
+                status: {
+                  type: SchemaType.STRING,
+                  description: "active, resolved, or unknown",
+                },
+                confidence: { type: SchemaType.NUMBER, description: "0-1" },
+                uncertain: { type: SchemaType.BOOLEAN },
+              },
+              required: ["condition"],
+            },
+          },
+          symptoms: {
+            type: SchemaType.ARRAY,
+            description: "Symptoms or complaints described in the document.",
+            items: {
+              type: SchemaType.OBJECT,
+              properties: {
+                description: { type: SchemaType.STRING },
+                confidence: { type: SchemaType.NUMBER, description: "0-1" },
+                uncertain: { type: SchemaType.BOOLEAN },
+              },
+              required: ["description"],
+            },
+          },
+          doctorAdvice: {
+            type: SchemaType.ARRAY,
+            description: "Free-text advice/instructions from the doctor.",
+            items: { type: SchemaType.STRING },
+          },
+          testsAdvised: {
+            type: SchemaType.ARRAY,
+            description: "Lab tests or scans the doctor advised.",
+            items: { type: SchemaType.STRING },
+          },
+        },
+        required: [
+          "medications",
+          "diagnoses",
+          "symptoms",
+          "doctorAdvice",
+          "testsAdvised",
+        ],
+      },
+    },
+  });
+};
+
+/**
+ * Sends the cleaned text of a printed clinical document to Gemini and returns
+ * the structured entities. Numbers are NEVER extracted here; this lane only
+ * handles free-form clinical content (meds/diagnoses/symptoms/advice/tests).
+ *
+ * @param {string} text - Cleaned full document text.
+ * @param {Object} deps - { getModel? } for testing.
+ * @returns {Promise<{medications:Array,diagnoses:Array,symptoms:Array,doctorAdvice:string[],testsAdvised:string[]}>}
+ */
+async function extractEntitiesFromText(text, deps = {}) {
+  try {
+    const model = deps.getModel ? deps.getModel() : getEntityModel();
+
+    const result = await callWithSingleRetry(
+      () =>
+        withTimeout(
+          model.generateContent({
+            contents: [
+              {
+                role: "user",
+                parts: [
+                  {
+                    text: `Read this clinical document and extract its contents into the required JSON schema.\n\nDOCUMENT TEXT:\n${text || ""}`,
+                  },
+                ],
+              },
+            ],
+          }),
+          AI_TIMEOUT_MS.documentEntity,
+          "Document entity extraction",
+        ),
+      "Document entity extraction",
+    );
+
+    const parsed = JSON.parse(result.response.text());
+    return {
+      medications: Array.isArray(parsed.medications) ? parsed.medications : [],
+      diagnoses: Array.isArray(parsed.diagnoses) ? parsed.diagnoses : [],
+      symptoms: Array.isArray(parsed.symptoms) ? parsed.symptoms : [],
+      doctorAdvice: Array.isArray(parsed.doctorAdvice) ? parsed.doctorAdvice : [],
+      testsAdvised: Array.isArray(parsed.testsAdvised) ? parsed.testsAdvised : [],
+    };
+  } catch (error) {
+    console.error("HealthLens AI Document Entity Error:", error.message);
+    throw new Error("Failed to read clinical document.");
   }
 }
 
@@ -256,7 +466,15 @@ async function generateChatResponse(userMessage, userProfile, userHistory, deps 
       ? deps.getModel(systemInstruction)
       : createChatModel(systemInstruction);
 
-    const result = await model.generateContent(userMessage);
+    const result = await callWithSingleRetry(
+      () =>
+        withTimeout(
+          model.generateContent(userMessage),
+          AI_TIMEOUT_MS.chat,
+          "AI chat",
+        ),
+      "AI chat",
+    );
 
     return result.response.text().trim();
   } catch (error) {
@@ -268,7 +486,11 @@ async function generateChatResponse(userMessage, userProfile, userHistory, deps 
 module.exports = {
   generateInterpretation,
   extractPrescriptionFromImage,
+  extractEntitiesFromText,
   generateChatResponse,
   buildChatSystemInstruction,
   createChatModel,
+  isRetryableAiError,
+  callWithSingleRetry,
+  withTimeout,
 };

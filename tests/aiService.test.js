@@ -117,6 +117,52 @@ test("generateChatResponse returns plain text on successful Gemini call", async 
   assert.equal(result, "Your triglycerides were 165 mg/dL.");
 });
 
+test("isRetryableAiError returns true for 503 and timeout messages", () => {
+  const { isRetryableAiError } = require("../services/aiService");
+
+  assert.equal(isRetryableAiError({ status: 503 }), true);
+  assert.equal(isRetryableAiError({ statusCode: 429 }), true);
+  assert.equal(isRetryableAiError(new Error("AI chat timed out after 15000ms")), true);
+  assert.equal(isRetryableAiError({ status: 400 }), false);
+  assert.equal(isRetryableAiError(new Error("invalid API key")), false);
+});
+
+test("callWithSingleRetry retries once on retryable error", async () => {
+  const { callWithSingleRetry } = require("../services/aiService");
+
+  let attempts = 0;
+  const result = await callWithSingleRetry(async () => {
+    attempts += 1;
+    if (attempts === 1) {
+      const err = new Error("service unavailable");
+      err.status = 503;
+      throw err;
+    }
+    return "ok";
+  }, "test");
+
+  assert.equal(attempts, 2);
+  assert.equal(result, "ok");
+});
+
+test("callWithSingleRetry does not retry non-retryable errors", async () => {
+  const { callWithSingleRetry } = require("../services/aiService");
+
+  let attempts = 0;
+  await assert.rejects(
+    () =>
+      callWithSingleRetry(async () => {
+        attempts += 1;
+        const err = new Error("bad request");
+        err.status = 400;
+        throw err;
+      }, "test"),
+    { message: "bad request" },
+  );
+
+  assert.equal(attempts, 1);
+});
+
 test("generateChatResponse throws when GEMINI_API_KEY is missing", async () => {
   const originalKey = process.env.GEMINI_API_KEY;
   delete process.env.GEMINI_API_KEY;

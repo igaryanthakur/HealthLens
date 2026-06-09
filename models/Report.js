@@ -1,4 +1,5 @@
 const mongoose = require("mongoose");
+const { computeVitalityScore } = require("../utils/clinical/vitalityScore");
 
 const DOCUMENT_TYPES = [
   "lab_report",
@@ -91,13 +92,7 @@ const ReportSchema = new mongoose.Schema(
 );
 
 ReportSchema.virtual("vitalityScore").get(function () {
-  let score = 100;
-  for (const m of this.measurements || []) {
-    if (m.status === "low" || m.status === "high") {
-      score -= 5;
-    }
-  }
-  return score;
+  return computeVitalityScore(this.measurements);
 });
 
 module.exports = mongoose.model("Report", ReportSchema);

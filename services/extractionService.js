@@ -7,6 +7,7 @@ const { stitchRows } = require("../utils/rowStitcher");
 const { extractSections } = require("./sectionExtractor");
 const { classifyDocumentType } = require("./reportClassifier");
 const { extractPrescription } = require("./prescriptionService");
+const { extractDocumentEntities } = require("./documentEntityService");
 
 const DOCUMENT_TYPE_HINTS = new Set([
   "lab_report",
@@ -53,9 +54,10 @@ async function extractMedicalReportText(filePath, opts = {}) {
       ? hint
       : classifyDocumentType(cleanedTextFull).documentType;
 
-  // Routing seam: documentType decides which extraction lane runs. Prescriptions
-  // go through the Gemini Vision lane; everything else flows through the
-  // deterministic lab pipeline.
+  // Routing seam: documentType decides which extraction lane runs.
+  //   - prescription                              -> Gemini Vision lane
+  //   - scan/discharge/typed_note/unknown          -> text entity lane (catch-all)
+  //   - lab_report (and default)                   -> deterministic lab pipeline
   let cleanedTextClinical = "";
   let structured;
   switch (documentType) {
@@ -63,6 +65,13 @@ async function extractMedicalReportText(filePath, opts = {}) {
       structured = await extractPrescription(filePath, extension, {
         textHint: cleanedTextFull,
       });
+      break;
+    }
+    case "scan_report":
+    case "discharge_summary":
+    case "typed_note":
+    case "unknown": {
+      structured = await extractDocumentEntities(cleanedTextFull, documentType);
       break;
     }
     case "lab_report":

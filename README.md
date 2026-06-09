@@ -5,6 +5,7 @@ This phase builds a backend-only Node.js service that accepts medical reports, e
 ## Project context
 
 For architecture, vision, milestone status, and agent onboarding, see [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).  
+For evaluation demo credentials and script, see [docs/DEMO.md](docs/DEMO.md).  
 This file is updated automatically after significant changes.
 
 ## Scope (This Phase)

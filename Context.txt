@@ -1,2 +1,276 @@
+3-Day Execution Plan
+Priority System
+Use this to avoid wasting time.
+
+P0: Must ship These directly affect demo success or core vision.
+
+Authenticated upload-to-dashboard flow
+MongoDB persistence and user-scoped history
+AI interpretation with token protection
+Dashboard with snapshot, trends, alerts, and history
+AI assistant grounded in user records
+Doctor summary/export
+Reliable demo data and graceful failures
+P1: Should ship High evaluator value, but not worth breaking P0.
+
+Longitudinal AI insights
+Medication/diagnosis/advice repository views
+Better review UI for extracted prescriptions/entities
+Better visual polish and animations
+Suggested assistant prompts
+P2: Nice only if time remains
+
+FullCalendar if the current mini calendar is insufficient
+Advanced PDF layouts
+Multi-page prescription support
+Deep OCR edge-case fixes
+Complex analytics beyond clear trends/deltas
+Day 4: Product Reliability + Dashboard Wow
+Goal
+Make the product demoable end-to-end and protect AI usage before adding more AI-heavy features.
+
+Stage 4.1: Baseline Verification
+Before changing anything in Agent mode, inspect:
+
+PROJECT_CONTEXT.md
+server.js
+routes/upload.js
+routes/interpret.js
+routes/chat.js
+services/aiService.js
+client/src/pages/Dashboard.jsx
+client/src/components/Dashboard/Dashboard.jsx
+client/src/lib/api.js
+Acceptance criteria:
+
+We know which features are actually implemented.
+We know current test count.
+We know whether the current frontend build passes.
+No assumptions from old plans override the real code.
+Stage 4.2: AI Token Protection
+This is important and should be early.
+
+Build/verify:
+
+Rate limit AI-heavy endpoints:
+POST /api/interpret
+POST /api/chat
+prescription/entity extraction routes if exposed through upload
+Use stricter limits for chat than upload/interpret.
+Add max input length for chat messages.
+Add max report history included in chat context, for example latest 10-20 reports or summarized context.
+Add timeout and graceful fallback around Gemini calls.
+Add user-facing fallback:
+“AI is temporarily unavailable. Your structured report was still saved.”
+Prevent repeated AI calls for the same uploaded report where possible.
+Recommended implementation shape later:
+
+express-rate-limit
+route-specific limiters
+bounded prompt builders
+deterministic fallback summary for saved documents
+optional hash-based AI result reuse later
+Acceptance criteria:
+
+A single user cannot spam Gemini through chat.
+Demo does not fail hard if Gemini is slow/unavailable.
+Structured extraction and persistence still work even if AI interpretation fails.
+Stage 4.3: Dashboard “Wow” Layer
+Evaluators judge fast. The dashboard must instantly communicate intelligence.
+
+Must show:
+
+Vitality score / health status
+Latest abnormal biomarkers
+Trend chart with Recharts
+Active medications
+Current/recent diagnoses
+Doctor advice / tests advised
+Recent timeline events
+AI summary or insight panel
+Do not overbuild hidden backend here. The screen must look alive.
+
+Acceptance criteria:
+
+With demo data, dashboard looks valuable within 5 seconds.
+Empty states are polished.
+One-report users see useful output.
+Multi-report users see trends and deltas.
+Stage 4.4: Demo Dataset
+This is critical.
+
+Create a believable patient journey:
+
+Report 1: baseline CBC/lipid/glucose
+Report 2: abnormal sugar/lipid
+Prescription: medication/advice
+Report 3: improved or worsened marker
+Optional typed note/discharge summary
+Acceptance criteria:
+
+Trends are visible.
+Assistant can answer meaningful questions.
+Doctor summary has enough content.
+Repository/vault does not look empty.
+Day 5: Personal Health Intelligence Layer
+Goal
+Move from “dashboard” to “intelligence platform.”
+
+Stage 5.1: Longitudinal AI Insights
+This is the highest-value missing flagship feature.
+
+Build an endpoint like:
+
+GET /api/repository/insights or
+POST /api/insights/longitudinal
+Input should be structured, not raw OCR:
+
+user profile
+latest report
+previous reports
+trend series
+active meds
+diagnoses
+abnormal markers
+tests advised
+doctor advice
+Strict AI output schema:
+
+{
+  "summary": "",
+  "trendInsights": [],
+  "riskFlags": [],
+  "doctorQuestions": [],
+  "followUpSuggestions": [],
+  "disclaimer": ""
+}
+Important language rules:
+
+Say “may indicate,” “worth discussing,” “trend observed.”
+Do not say “you have,” “start medication,” or “diagnosed with.”
+Always include a doctor-facing disclaimer.
+Acceptance criteria:
+
+AI can say what changed over time.
+It cites structured facts like dates, values, and markers.
+It does not invent diagnoses.
+It fails gracefully if Gemini quota is hit.
+Stage 5.2: AI Insights UI
+Create a premium dashboard section:
+
+“What changed since your last report?”
+“Needs attention”
+“Improving”
+“Questions to ask your doctor”
+“Suggested follow-up”
+Acceptance criteria:
+
+It is visually prominent.
+It is more impressive than a generic summary.
+It makes the product feel personalized.
+Stage 5.3: Doctor Summary Export
+This is evaluator gold because it maps directly to the problem statement.
+
+Minimum export content:
+
+Patient profile
+Active/recent conditions
+Current/recent medications
+Latest vitals
+Abnormal markers
+Timeline highlights
+AI summary
+Questions for doctor
+Disclaimer
+Preferred if time permits:
+
+Server-generated PDF route.
+If time is tight, polished browser print/export is acceptable.
+Acceptance criteria:
+
+One click produces a doctor-readable summary.
+It is not just a screenshot of the dashboard.
+It solves “new doctors need patient history fast.”
+Day 6: Evaluation Polish, QA, And Freeze
+Goal
+Stop building features early. Make the demo reliable and impressive.
+
+Stage 6.1: Full QA Pass
+Run:
+
+backend tests
+frontend build
+manual upload flow
+login/register
+dashboard history
+vault/report open
+chat
+export
+Gemini failure simulation if possible
+Acceptance criteria:
+
+No broken primary route.
+No blank dashboard.
+No unhandled API failure.
+No console-breaking frontend issue during demo.
+Stage 6.2: UX Polish
+Fix high-visibility rough edges only.
+
+Polish:
+
+loading states
+skeleton cards
+upload progress text
+empty states
+error banners
+mobile-ish responsiveness
+consistent colors/spacing
+medical safety disclaimer
+Do not start large new features.
+
+Stage 6.3: Evaluation Script
+Prepare a fixed 3-5 minute demo:
+
+“Health records are scattered.”
+Register/login as patient.
+Upload lab report/prescription.
+Show structured extraction and review.
+Show dashboard trends and alerts.
+Show vault/timeline.
+Ask assistant: “What changed since my last report?”
+Export doctor summary.
+Close with safety: “HealthLens assists understanding, not diagnosis.”
+Acceptance criteria:
+
+You can run the demo without improvising.
+Demo data supports every claim.
+If Gemini fails, fallback still lets you continue.
+What I Would Not Prioritize
+I’m going to be strict here.
+
+Do not spend the remaining time on:
+
+Rewriting deterministic extraction
+Large OCR edge-case work
+Hospital discovery
+Wearables
+Voice assistant
+Multilingual support
+Complex calendar implementation if mini calendar already communicates timeline
+Perfect PDF generation if a polished export works
+Overly broad rate limiting across every route
+Do spend time on:
+
+AI route protection
+Longitudinal insights
+Dashboard polish
+Doctor summary
+Demo reliability
+First Work Stage When We Start
+When you switch to Agent mode, the first actual implementation stage should be:
+
+Stage 4.1 + 4.2: verify current code, then add AI token protection and graceful Gemini failure handling.
+
+That is the right foundation before building more AI features.
 Here is the current state of my project. Read this and wait for my first instruction.
 Read @PROJECT_CONTEXT.md

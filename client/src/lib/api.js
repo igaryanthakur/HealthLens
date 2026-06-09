@@ -4,7 +4,11 @@ async function parseJsonResponse(res) {
   const json = await res.json().catch(() => ({}));
 
   if (!res.ok || !json.success) {
-    throw new Error(json.message || `Request failed with status ${res.status}`);
+    const message =
+      json.message || json.error || `Request failed with status ${res.status}`;
+    const err = new Error(message);
+    err.status = res.status;
+    throw err;
   }
 
   return json;
@@ -82,6 +86,19 @@ export async function savePrescription(payload) {
   return parseJsonResponse(res);
 }
 
+export async function saveReviewedDocument(payload) {
+  const res = await fetch('/api/documents', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify(payload),
+  });
+
+  return parseJsonResponse(res);
+}
+
 export async function interpretStructured(structured) {
   const res = await fetch('/api/interpret', {
     method: 'POST',
@@ -105,6 +122,54 @@ export async function fetchReportHistory() {
 
 export async function fetchReportById(id) {
   const res = await fetch(`/api/reports/${id}`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function fetchMedicationHistory() {
+  const res = await fetch('/api/repository/medications', {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function fetchDiagnosisHistory() {
+  const res = await fetch('/api/repository/diagnoses', {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function fetchSymptomHistory() {
+  const res = await fetch('/api/repository/symptoms', {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function fetchAdviceHistory() {
+  const res = await fetch('/api/repository/advice', {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function fetchHealthTimeline() {
+  const res = await fetch('/api/repository/timeline', {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function fetchRepositorySummary() {
+  const res = await fetch('/api/repository/summary', {
     headers: authHeaders(),
   });
 

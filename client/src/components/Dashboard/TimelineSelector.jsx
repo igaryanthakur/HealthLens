@@ -1,4 +1,4 @@
-import { Activity } from 'lucide-react'
+import { FileText } from 'lucide-react'
 
 function formatTimelineDate(value) {
   const date = new Date(value)
@@ -14,10 +14,15 @@ export default function TimelineSelector({ history = [], activeReportId, onSelec
   if (history.length <= 1) return null
 
   return (
-    <div className="bg-surface-container-lowest rounded-2xl border border-outline-variant/10 shadow-ambient p-4 mb-6 print:hidden">
-      <h3 className="text-sm font-semibold text-on-surface mb-3">Report Timeline</h3>
+    <div className="mb-8 print:hidden">
+      <div className="flex items-center gap-2 mb-3">
+        <FileText size={15} className="text-slate-400" />
+        <h3 className="text-xs font-semibold uppercase tracking-wide text-slate-500">
+          Your Reports
+        </h3>
+      </div>
 
-      <div className="flex overflow-x-auto gap-4 scrollbar-hide">
+      <div className="flex overflow-x-auto gap-3 pb-1 scrollbar-hide">
         {history.map((report) => {
           const isActive = String(report._id) === String(activeReportId)
 
@@ -26,19 +31,14 @@ export default function TimelineSelector({ history = [], activeReportId, onSelec
               key={report._id}
               type="button"
               onClick={() => onSelectReport(report._id)}
-              className={`shrink-0 rounded-xl px-4 py-3 text-left transition-colors ${
+              className={`shrink-0 rounded-2xl px-4 py-3 text-left border transition-all ${
                 isActive
-                  ? 'bg-primary text-on-primary shadow-md'
-                  : 'bg-surface-container border border-outline-variant/30 text-on-surface hover:bg-surface-container-high'
+                  ? 'bg-teal-700 border-teal-700 text-white shadow-sm'
+                  : 'bg-white border-slate-200 text-slate-700 hover:border-teal-200 hover:bg-teal-50/40'
               }`}
             >
-              <div className="flex items-center gap-2">
-                {isActive && <Activity size={14} className="shrink-0" />}
-                <p className="text-sm font-semibold">{formatTimelineDate(report.reportDate)}</p>
-              </div>
-              <p
-                className={`text-xs mt-0.5 ${isActive ? 'text-on-primary/90' : 'text-on-surface-variant'}`}
-              >
+              <p className="text-sm font-semibold">{formatTimelineDate(report.reportDate)}</p>
+              <p className={`text-xs mt-0.5 ${isActive ? 'text-teal-50' : 'text-slate-400'}`}>
                 {report.reportType || 'Report'}
               </p>
             </button>

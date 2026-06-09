@@ -88,6 +88,35 @@ test("interpret handler returns aiPrompt and data for valid structured body", as
   assert.match(receivedProfileContext, /Chronic Conditions: Hypertension/);
 });
 
+test("interpret handler saves fallback when Gemini fails", async () => {
+  const sample = ["Haemoglobin (HB) : 8.6 g/dL 12-15"].join("\n");
+  const { structured } = filterClinicalData(sample, { ocrPages: [] });
+  const res = createMockRes();
+  let savedReport = null;
+
+  await interpretHandler(
+    { body: { structured }, user: { id: stubUserId } },
+    res,
+    createTestDeps({
+      generateInterpretation: async () => {
+        throw new Error("Failed to generate AI interpretation.");
+      },
+      saveReport: async (doc) => {
+        savedReport = doc;
+        return { _id: stubReportId };
+      },
+    }),
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.aiUnavailable, true);
+  assert.match(res.body.data.summary, /temporarily unavailable/i);
+  assert.ok(savedReport);
+  assert.match(savedReport.aiInterpretation.summary, /temporarily unavailable/i);
+  assert.equal(res.body.reportId, stubReportId);
+});
+
 test("interpret handler returns 500 when report save fails", async () => {
   const sample = ["Haemoglobin (HB) : 8.6 g/dL 12-15"].join("\n");
   const { structured } = filterClinicalData(sample, { ocrPages: [] });

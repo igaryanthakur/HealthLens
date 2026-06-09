@@ -3,21 +3,11 @@ const Report = require("../models/Report");
 const User = require("../models/User");
 const { protect } = require("../middleware/authMiddleware");
 const { generateChatResponse } = require("../services/aiService");
+const { buildBoundedChatHistory } = require("../utils/chatContextBuilder");
 
 const router = express.Router();
 
-function serializeReportsForChat(reports) {
-  return reports.map((report) => {
-    const doc = typeof report.toJSON === "function" ? report.toJSON() : report;
-    return {
-      reportType: doc.reportType,
-      reportDate: doc.reportDate,
-      measurements: doc.measurements,
-      aiInterpretation: doc.aiInterpretation,
-      vitalityScore: doc.vitalityScore,
-    };
-  });
-}
+const MAX_CHAT_MESSAGE_LENGTH = 1500;
 
 async function chatHandler(req, res, deps = {}) {
   try {
@@ -30,10 +20,18 @@ async function chatHandler(req, res, deps = {}) {
       });
     }
 
+    if (message.trim().length > MAX_CHAT_MESSAGE_LENGTH) {
+      return res.status(400).json({
+        success: false,
+        message: "Message is too long. Please keep it under 1500 characters.",
+      });
+    }
+
     const findUserById = deps.findUserById ?? ((id) => User.findById(id));
     const findReports =
       deps.findReports ??
-      ((userId) => Report.find({ userId }).sort({ reportDate: 1 }));
+      ((userId) =>
+        Report.find({ userId }).sort({ reportDate: -1 }).limit(10));
 
     const genChat = deps.generateChatResponse ?? generateChatResponse;
 
@@ -47,7 +45,7 @@ async function chatHandler(req, res, deps = {}) {
 
     const reports = await findReports(req.user.id);
     const userProfile = user.profile ?? {};
-    const userHistory = serializeReportsForChat(reports);
+    const userHistory = buildBoundedChatHistory(reports);
 
     const reply = await genChat(message.trim(), userProfile, userHistory);
 
@@ -57,9 +55,10 @@ async function chatHandler(req, res, deps = {}) {
     });
   } catch (error) {
     console.error("Chat Route Error:", error);
-    return res.status(500).json({
+    return res.status(503).json({
       success: false,
-      message: error.message,
+      message:
+        "AI assistant is temporarily unavailable. Your health records are still saved safely.",
     });
   }
 }
@@ -68,4 +67,4 @@ router.post("/", protect, chatHandler);
 
 module.exports = router;
 module.exports.chatHandler = chatHandler;
-module.exports.serializeReportsForChat = serializeReportsForChat;
+module.exports.MAX_CHAT_MESSAGE_LENGTH = MAX_CHAT_MESSAGE_LENGTH;

@@ -9,7 +9,7 @@ import {
   fetchReportHistory,
   uploadReport,
   interpretStructured,
-  savePrescription,
+  saveReviewedDocument,
 } from '../lib/api'
 import { APP_STATE, normalizeStructured, reportToDashboardPayload } from '../lib/structured'
 
@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [reviewData, setReviewData] = useState(null)
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
+  const [aiUnavailableNotice, setAiUnavailableNotice] = useState(null)
   const [loadingHistory, setLoadingHistory] = useState(true)
 
   const loadHistory = useCallback(async () => {
@@ -83,13 +84,17 @@ export default function Dashboard() {
   }
 
   async function handleFileSelected(file, documentType = 'auto') {
+    if (appState === APP_STATE.PROCESSING) return
+
     setError(null)
+    setAiUnavailableNotice(null)
     setAppState(APP_STATE.PROCESSING)
 
     try {
       const uploadJson = await uploadReport(file, documentType)
 
-      if (uploadJson.structured?.documentType === 'prescription') {
+      const resolvedDocType = uploadJson.structured?.documentType
+      if (resolvedDocType && resolvedDocType !== 'lab_report') {
         setReviewData(uploadJson.structured)
         setAppState(APP_STATE.REVIEW)
         return
@@ -99,6 +104,12 @@ export default function Dashboard() {
 
       await loadHistory()
       setSearchParams({ reportId: interpretJson.reportId })
+
+      if (interpretJson.aiUnavailable) {
+        setAiUnavailableNotice(
+          'AI interpretation is temporarily unavailable. Your structured report data was still saved.',
+        )
+      }
 
       setDashboardData({
         _id: interpretJson.reportId,
@@ -113,17 +124,17 @@ export default function Dashboard() {
     }
   }
 
-  async function handleConfirmPrescription(payload) {
+  async function handleConfirmDocument(payload) {
     setError(null)
     setSaving(true)
 
     try {
-      const json = await savePrescription(payload)
+      const json = await saveReviewedDocument(payload)
       await loadHistory()
       setReviewData(null)
       setSearchParams({ reportId: json.reportId })
     } catch (err) {
-      setError(err.message || 'Failed to save the prescription. Please try again.')
+      setError(err.message || 'Failed to save the document. Please try again.')
     } finally {
       setSaving(false)
     }
@@ -151,7 +162,8 @@ export default function Dashboard() {
     return (
       <ReviewExtraction
         structured={reviewData}
-        onConfirm={handleConfirmPrescription}
+        documentType={reviewData.documentType}
+        onConfirm={handleConfirmDocument}
         onCancel={handleCancelReview}
         saving={saving}
         error={error}
@@ -161,14 +173,27 @@ export default function Dashboard() {
 
   if (appState === APP_STATE.RESOLVED && dashboardData) {
     return (
-      <ReportDashboard
-        payload={dashboardData}
-        history={history}
-        activeReportId={dashboardData._id}
-        onSelectReport={handleTimelineSelect}
-      />
+      <>
+        {aiUnavailableNotice && (
+          <div className="bg-amber-50 border-b border-amber-200 text-amber-900 text-sm text-center py-2 px-4">
+            {aiUnavailableNotice}
+          </div>
+        )}
+        <ReportDashboard
+          payload={dashboardData}
+          history={history}
+          activeReportId={dashboardData._id}
+          onSelectReport={handleTimelineSelect}
+        />
+      </>
     )
   }
 
-  return <UploadZone onFileSelected={handleFileSelected} error={error} />
+  return (
+    <UploadZone
+      onFileSelected={handleFileSelected}
+      error={error}
+      disabled={appState === APP_STATE.PROCESSING}
+    />
+  )
 }

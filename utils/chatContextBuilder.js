@@ -51,6 +51,57 @@ function buildVaultContext(reports = []) {
   return `HEALTH VAULT (${reports.length} report${reports.length === 1 ? "" : "s"}):\n\n${blocks.join("\n\n")}`;
 }
 
+function buildBoundedChatHistory(reports = [], options = {}) {
+  const maxReports = options.maxReports ?? 10;
+  const maxMeasurementsPerReport = options.maxMeasurementsPerReport ?? 8;
+  const maxEntityItems = options.maxEntityItems ?? 5;
+  const maxSummaryLength = options.maxSummaryLength ?? 400;
+
+  const sorted = [...reports].sort((a, b) => {
+    const dateA = new Date(a.reportDate || 0).getTime();
+    const dateB = new Date(b.reportDate || 0).getTime();
+    return dateB - dateA;
+  });
+
+  return sorted.slice(0, maxReports).map((report) => {
+    const doc = typeof report.toJSON === "function" ? report.toJSON() : report;
+    const measurements = doc.measurements || [];
+
+    const abnormal = measurements.filter((m) =>
+      ["low", "high"].includes(String(m.status).toLowerCase()),
+    );
+    const keyNormals = measurements
+      .filter((m) => String(m.status).toLowerCase() === "normal")
+      .slice(0, 3);
+
+    const summary = doc.aiInterpretation?.summary;
+    const aiSummary =
+      typeof summary === "string" && summary.length > maxSummaryLength
+        ? summary.slice(0, maxSummaryLength)
+        : summary || null;
+
+    return {
+      reportType: doc.reportType,
+      documentType: doc.documentType,
+      reportDate: doc.reportDate,
+      vitalityScore: doc.vitalityScore,
+      measurements: [...abnormal, ...keyNormals].slice(0, maxMeasurementsPerReport),
+      medications: (doc.medications || []).slice(0, maxEntityItems).map((m) => ({
+        name: m.name,
+        dosage: m.dosage,
+        frequency: m.frequency,
+      })),
+      diagnoses: (doc.diagnoses || []).slice(0, maxEntityItems).map((d) => ({
+        condition: d.condition,
+        status: d.status,
+      })),
+      doctorAdvice: (doc.doctorAdvice || []).slice(0, maxEntityItems),
+      testsAdvised: (doc.testsAdvised || []).slice(0, maxEntityItems),
+      aiSummary,
+    };
+  });
+}
+
 function buildChatPrompt({ profileContext, vaultContext, message, history = [] }) {
   const parts = [
     profileContext || "",
@@ -75,6 +126,7 @@ function buildChatPrompt({ profileContext, vaultContext, message, history = [] }
 
 module.exports = {
   buildVaultContext,
+  buildBoundedChatHistory,
   buildChatPrompt,
   formatReportDate,
 };

@@ -56,6 +56,20 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
     });
   } catch (error) {
     logger.error("Upload extraction failed", { error: error.message });
+
+    const message = error.message || "";
+    const isAiLaneFailure =
+      message.includes("Failed to read prescription") ||
+      message.includes("Failed to read clinical document");
+
+    if (isAiLaneFailure) {
+      return res.status(503).json({
+        success: false,
+        message:
+          "AI extraction is temporarily unavailable for this document type. Please try again shortly or upload a lab report.",
+      });
+    }
+
     return next(error);
   } finally {
     try {

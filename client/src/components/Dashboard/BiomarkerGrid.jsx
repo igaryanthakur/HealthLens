@@ -9,6 +9,7 @@ import {
   Sun,
   Zap,
 } from 'lucide-react'
+import { resolveCategory } from '../../lib/canonicalCategories'
 
 function capitalizeName(name) {
   if (!name) return 'Unknown'
@@ -20,21 +21,21 @@ function getStatusStyles(status) {
 
   if (normalized === 'normal') {
     return {
-      badge: 'bg-primary/10 border-primary/20 text-primary',
-      card: 'border-primary/10',
+      badge: 'bg-emerald-50 border-emerald-100 text-emerald-700',
+      card: 'border-slate-100',
     }
   }
 
   if (normalized === 'low' || normalized === 'high') {
     return {
-      badge: 'bg-amber-50 border-amber-200 text-amber-700',
-      card: 'border-amber-200/60',
+      badge: 'bg-orange-50 border-orange-100 text-orange-700',
+      card: 'border-orange-100',
     }
   }
 
   return {
-    badge: 'bg-surface-container-low border-outline-variant/20 text-on-surface-variant',
-    card: 'border-outline-variant/20',
+    badge: 'bg-slate-100 border-slate-200 text-slate-500',
+    card: 'border-slate-100',
   }
 }
 
@@ -71,10 +72,10 @@ function MeasurementCard({ measurement }) {
 
   return (
     <div
-      className={`bg-surface-container-lowest rounded-[16px] border border-outline-variant/10 shadow-ambient p-5 ${styles.card}`}
+      className={`bg-white rounded-2xl border shadow-sm p-5 ${styles.card}`}
     >
       <div className="flex items-start justify-between gap-2 mb-3">
-        <h3 className="font-medium text-on-surface text-sm">
+        <h3 className="font-medium text-slate-900 text-sm">
           {capitalizeName(measurement.name)}
         </h3>
         {measurement.status && (
@@ -86,13 +87,13 @@ function MeasurementCard({ measurement }) {
         )}
       </div>
 
-      <p className="text-2xl font-semibold text-on-surface mb-2">
+      <p className="text-2xl font-semibold text-slate-900 mb-2">
         {value}
-        {unit && <span className="text-base font-normal text-on-surface-variant ml-1">{unit}</span>}
+        {unit && <span className="text-base font-normal text-slate-400 ml-1">{unit}</span>}
       </p>
 
       {measurement.referenceRange && (
-        <p className="text-xs text-on-surface-variant">
+        <p className="text-xs text-slate-400">
           Ref: {measurement.referenceRange}
         </p>
       )}
@@ -102,7 +103,7 @@ function MeasurementCard({ measurement }) {
 
 export default function BiomarkerGrid({ measurements = [], className = '' }) {
   const grouped = measurements.reduce((acc, measurement) => {
-    const category = measurement.category || 'General Vitals'
+    const category = measurement.category || resolveCategory(measurement.name)
     if (!acc[category]) acc[category] = []
     acc[category].push(measurement)
     return acc
@@ -111,7 +112,7 @@ export default function BiomarkerGrid({ measurements = [], className = '' }) {
   return (
     <div className={className}>
       {measurements.length === 0 ? (
-        <p className="text-on-surface-variant text-sm">No measurements extracted from this report.</p>
+        <p className="text-slate-400 text-sm">No measurements extracted from this report.</p>
       ) : (
         Object.entries(grouped).map(([category, items], categoryIndex) => {
           const Icon = getCategoryIcon(category)
@@ -119,7 +120,7 @@ export default function BiomarkerGrid({ measurements = [], className = '' }) {
           return (
             <section key={category}>
               <h2
-                className={`font-headline-sm text-primary mb-4 border-b border-outline-variant/30 pb-2 flex items-center gap-2 ${categoryIndex === 0 ? 'mt-0' : 'mt-6'}`}
+                className={`text-sm font-semibold text-teal-700 mb-4 border-b border-slate-200 pb-2 flex items-center gap-2 ${categoryIndex === 0 ? 'mt-0' : 'mt-6'}`}
               >
                 <Icon size={20} />
                 {category}

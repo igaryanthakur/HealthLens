@@ -10,7 +10,22 @@ const EMPTY_MED = {
   uncertain: false,
 }
 
-export default function ReviewExtraction({ structured, onConfirm, onCancel, saving = false, error }) {
+const DOC_TYPE_LABELS = {
+  prescription: 'prescription',
+  scan_report: 'scan report',
+  discharge_summary: 'discharge summary',
+  typed_note: 'clinical note',
+  unknown: 'document',
+}
+
+export default function ReviewExtraction({
+  structured,
+  documentType = 'prescription',
+  onConfirm,
+  onCancel,
+  saving = false,
+  error,
+}) {
   const [medications, setMedications] = useState(
     (structured?.medications ?? []).map((m) => ({ ...EMPTY_MED, ...m })),
   )
@@ -22,8 +37,16 @@ export default function ReviewExtraction({ structured, onConfirm, onCancel, savi
       ...d,
     })),
   )
+  const [symptoms, setSymptoms] = useState(
+    (structured?.symptoms ?? [])
+      .map((s) => (typeof s === 'string' ? s : s?.description))
+      .filter(Boolean)
+      .join('\n'),
+  )
   const [doctorAdvice, setDoctorAdvice] = useState((structured?.doctorAdvice ?? []).join('\n'))
   const [testsAdvised, setTestsAdvised] = useState((structured?.testsAdvised ?? []).join('\n'))
+
+  const docLabel = DOC_TYPE_LABELS[documentType] || 'document'
 
   function updateMed(index, field, value) {
     setMedications((prev) =>
@@ -55,6 +78,7 @@ export default function ReviewExtraction({ structured, onConfirm, onCancel, savi
 
   function handleConfirm() {
     const payload = {
+      documentType,
       medications: medications
         .filter((m) => m.name.trim())
         .map((m) => ({
@@ -74,6 +98,11 @@ export default function ReviewExtraction({ structured, onConfirm, onCancel, savi
           confidence: d.confidence,
           uncertain: Boolean(d.uncertain),
         })),
+      symptoms: symptoms
+        .split('\n')
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .map((description) => ({ description })),
       doctorAdvice: doctorAdvice
         .split('\n')
         .map((s) => s.trim())
@@ -93,7 +122,7 @@ export default function ReviewExtraction({ structured, onConfirm, onCancel, savi
         <div className="mb-6">
           <h2 className="text-2xl font-semibold text-on-surface">Did we read this right?</h2>
           <p className="text-on-surface-variant text-sm mt-1">
-            We used AI to read your prescription. Please review and correct anything before saving.
+            We used AI to read your {docLabel}. Please review and correct anything before saving.
             Highlighted rows are low-confidence reads.
           </p>
         </div>
@@ -227,6 +256,16 @@ export default function ReviewExtraction({ structured, onConfirm, onCancel, savi
               </div>
             ))}
           </div>
+        </section>
+
+        <section className="glass-card shadow-ambient rounded-2xl p-6 border border-outline-variant/20 mb-6">
+          <h3 className="font-semibold text-on-surface mb-2">Symptoms</h3>
+          <p className="text-xs text-on-surface-variant mb-2">One symptom per line.</p>
+          <textarea
+            className="w-full h-24 px-3 py-2 rounded-lg border border-outline-variant/40 text-sm"
+            value={symptoms}
+            onChange={(e) => setSymptoms(e.target.value)}
+          />
         </section>
 
         <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
