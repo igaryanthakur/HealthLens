@@ -1,7 +1,7 @@
 # HealthLens AI — Project Context
 
 **Last Updated:** Monday, June 8, 2026  
-**Status:** Day 6 (Auth UI + Live Chat Assistant — Findings & Risk Detection Next)
+**Status:** Day 6 (Stage 1 Data Model + Document Routing Foundation — Multi-Document Extraction Next)
 
 ---
 
@@ -38,7 +38,7 @@ It is a web-based platform that helps patients understand, organize, and analyze
 
 - **Backend:** Node.js + Express 5 (CommonJS) on port 5000
 - **React frontend:** [`client/`](client/) — Vite + React, Tailwind CSS v3 (Vitality Core tokens), lucide-react, recharts, **react-router-dom**; page routes (`/`, `/login`, `/register`, `/dashboard`, `/vault`, `/chat`, `/profile`); dev proxy `/api` → `localhost:5000`
-- **MongoDB:** Mongoose + [`models/Report.js`](models/Report.js) — `mongodb://localhost:27017/healthlens` via [`config/db.js`](config/db.js); server connects before listen
+- **MongoDB:** Mongoose + [`models/Report.js`](models/Report.js) — `mongodb://localhost:27017/healthlens` via [`config/db.js`](config/db.js); server connects before listen. Report schema holds `measurements` + `aiInterpretation` plus **Stage 1 entity scaffolding** (`documentType` enum, `medications[]`, `diagnoses[]`, `symptoms[]`, `doctorAdvice[]`, `testsAdvised[]`, `provenance`) — all optional/defaulted, populated starting Stage 2
 - **JWT auth:** [`models/User.js`](models/User.js) (nested `profile` subdocument: DOB, gender, blood group, biometrics, chronic conditions, lifestyle), [`routes/auth.js`](routes/auth.js), [`routes/users.js`](routes/users.js), [`middleware/authMiddleware.js`](middleware/authMiddleware.js) — `bcryptjs` password hashing, `jsonwebtoken` (30d expiry); `protect` on upload/interpret/history/users routes; reports scoped by `userId` ObjectId ref
 - **Local extraction:** `pdf-parse`, `pdfjs-dist`, `@napi-rs/canvas`, `tesseract.js`, `sharp`
 - **Manual UI:** [`index.html`](index.html) — browser upload tester (fetch → `POST /api/upload`)
@@ -102,6 +102,8 @@ flowchart TD
 11. **Persistence:** [`routes/interpret.js`](routes/interpret.js) — maps measurements, saves Report document, returns `reportId`
 
 **Extraction method on measurements:** `generalized_stripper`
+
+**Document routing (Stage 1):** [`services/extractionService.js`](services/extractionService.js) calls `classifyDocumentType()` ([`services/reportClassifier.js`](services/reportClassifier.js)) on the cleaned text to tag `structured.documentType` (`lab_report` | `prescription` | `scan_report` | `discharge_summary` | `typed_note` | `unknown`). Deterministic keyword scoring (word-boundary guards for short tokens). A `switch` routing seam currently sends every type through the lab pipeline; the prescription Vision lane plugs in here at Stage 2. `documentType` is orthogonal to the existing lab-panel `reportType` (CBC/LIPID/...).
 
 ---
 
@@ -205,7 +207,7 @@ flowchart TD
 
 ## 7. Test status
 
-- **Unit tests:** **68/68 passing** (`npm test`)
+- **Unit tests:** **76/76 passing** (`npm test`)
 - **Coverage includes:** row stitcher, section extractor, generalized stripper, metadata prepass, interpret handler, profileContextBuilder, users route handlers, vitalityScore virtual, reports history handler, reports getById handler, aiContextGenerator, aiService (interpret + chat), chatContextBuilder, chat route handler, CBC PDF fixture, integration extraction, validation, traceability, unit normalizer
 - **Golden layouts:** `CBC.pdf` (9/9 core CBC measurements), `reports.pdf` (vitamins, lipids, etc.)
 
@@ -234,6 +236,7 @@ flowchart TD
 
 ## 9. Changelog (recent)
 
+- **2026-06-08:** Stage 1 — Data Model & Document Routing Foundation. Expanded [`models/Report.js`](models/Report.js) with `documentType` enum + `medications`/`diagnoses`/`symptoms`/`doctorAdvice`/`testsAdvised`/`provenance` scaffolding (optional, defaulted, backward compatible). Added deterministic `classifyDocumentType()` to [`services/reportClassifier.js`](services/reportClassifier.js); routing seam in [`services/extractionService.js`](services/extractionService.js) (all types → lab pipeline for now); `documentType` threaded into upload log + persisted in [`routes/interpret.js`](routes/interpret.js). 76 tests
 - **2026-06-08:** Chat API alignment — `generateChatResponse(message, profile, reports)` with JSON system prompt; simplified `POST /api/chat` body; `sendChatMessage(message)`; Chat.jsx static welcome + `isTyping`; 68 tests
 - **2026-06-08:** Auth UI + Chat backend — split-screen [`Login.jsx`](client/src/pages/Login.jsx)/[`Register.jsx`](client/src/pages/Register.jsx) prototype; [`AuthBrandPanel`](client/src/components/Auth/AuthBrandPanel.jsx) + back-to-home links; Navbar hidden on auth routes; `POST /api/chat` with [`chatContextBuilder`](utils/chatContextBuilder.js) + `generateChatResponse`; live [`Chat.jsx`](client/src/pages/Chat.jsx); 68 tests
 - **2026-06-08:** Chat Assistant UI — [`Chat.jsx`](client/src/pages/Chat.jsx) from HTML mockup (static messages, controlled input, `handleSend` stub); protected `/chat` route; Navbar **Assistant** link; Footer hidden on `/chat`; `chat-scroll` utility in [`index.css`](client/src/index.css); 58 tests unchanged

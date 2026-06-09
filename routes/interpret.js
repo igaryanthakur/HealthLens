@@ -46,6 +46,7 @@ async function interpretHandler(req, res, deps = {}) {
     const report = new Report({
       userId: req.user.id,
       reportType: structured.reportType || "CBC",
+      documentType: structured.documentType || "lab_report",
       reportDate: structured.patient_info?.reportDate
         ? new Date(structured.patient_info.reportDate)
         : undefined,

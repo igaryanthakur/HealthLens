@@ -125,3 +125,48 @@ test("interpret handler returns 400 when measurements is not an array", async ()
   assert.equal(res.statusCode, 400);
   assert.equal(res.body.success, false);
 });
+
+test("interpret handler defaults documentType to lab_report when absent", async () => {
+  const sample = ["Haemoglobin (HB) : 8.6 g/dL 12-15"].join("\n");
+  const { structured } = filterClinicalData(sample, { ocrPages: [] });
+  const res = createMockRes();
+  let savedReport = null;
+
+  await interpretHandler(
+    { body: { structured }, user: { id: stubUserId } },
+    res,
+    createTestDeps({
+      saveReport: async (doc) => {
+        savedReport = doc;
+        return { _id: stubReportId };
+      },
+    }),
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.ok(savedReport);
+  assert.equal(savedReport.documentType, "lab_report");
+});
+
+test("interpret handler persists explicit structured.documentType", async () => {
+  const sample = ["Haemoglobin (HB) : 8.6 g/dL 12-15"].join("\n");
+  const { structured } = filterClinicalData(sample, { ocrPages: [] });
+  structured.documentType = "prescription";
+  const res = createMockRes();
+  let savedReport = null;
+
+  await interpretHandler(
+    { body: { structured }, user: { id: stubUserId } },
+    res,
+    createTestDeps({
+      saveReport: async (doc) => {
+        savedReport = doc;
+        return { _id: stubReportId };
+      },
+    }),
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.ok(savedReport);
+  assert.equal(savedReport.documentType, "prescription");
+});

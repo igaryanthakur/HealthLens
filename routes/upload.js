@@ -18,12 +18,13 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
   const uploadedFilePath = req.file.path;
 
   try {
-    const { methodUsed, cleanedText, cleanedTextFull, cleanedTextClinical, structured } =
+    const { methodUsed, documentType, cleanedText, cleanedTextFull, cleanedTextClinical, structured } =
       await extractMedicalReportText(uploadedFilePath);
 
     logger.info("Extraction completed", {
       filename: req.file.originalname,
       extractionMethod: methodUsed,
+      documentType,
       reportType: structured.reportType,
       fullTextLength: cleanedTextFull.length,
       clinicalTextLength: cleanedTextClinical.length,
