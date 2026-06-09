@@ -75,7 +75,7 @@ const ReportSchema = new mongoose.Schema(
     provenance: ProvenanceSchema,
 
     aiInterpretation: {
-      summary: { type: String, required: true },
+      summary: { type: String },
       findings: [
         {
           parameter: String,

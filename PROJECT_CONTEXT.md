@@ -1,7 +1,7 @@
 # HealthLens AI — Project Context
 
-**Last Updated:** Monday, June 8, 2026  
-**Status:** Day 6 (Stage 1 Data Model + Document Routing Foundation — Multi-Document Extraction Next)
+**Last Updated:** Tuesday, June 9, 2026  
+**Status:** Day 6 (Stage 2a Prescription Vision Lane shipped — printed-entity extraction I4 + generalized review I5 next)
 
 ---
 
@@ -50,7 +50,7 @@ It is a web-based platform that helps patients understand, organize, and analyze
 | Endpoint | Status | Purpose |
 |----------|--------|---------|
 | `GET /health` | Live | System health check |
-| `POST /api/upload` | Live (auth) | Bearer JWT required. Multer upload (`report` field). Deterministic OCR/extraction. Returns `structured` JSON + cleaned text fields |
+| `POST /api/upload` | Live (auth) | Bearer JWT required. Multer upload (`report` field) + optional `documentType` hint (`auto`/`lab_report`/`prescription`/...). Routes to the deterministic lab pipeline or the prescription Vision lane; returns `structured` JSON (lab measurements OR prescription entities) + cleaned text fields |
 | `POST /api/interpret` | Live (auth) | Bearer JWT required. Accepts `{ structured }`. Fetches user profile, builds profile-aware prompt via [`utils/profileContextBuilder.js`](utils/profileContextBuilder.js), calls Gemini via [`services/aiService.js`](services/aiService.js), persists [`models/Report.js`](models/Report.js) with `userId`. Returns `{ success, aiPrompt, data, reportId }` where `data` is `{ summary, findings, recommendations }` |
 | `GET /api/reports/history` | Live (auth) | Bearer JWT required. Returns authenticated user's reports sorted by `reportDate` ascending. Each report includes `vitalityScore` virtual (100 minus 5 per low/high measurement) |
 | `GET /api/reports/:id` | Live (auth) | Bearer JWT required. Returns `{ success, report }` for the authenticated owner; 403 if `userId` mismatch; 404 if not found |
@@ -59,10 +59,11 @@ It is a web-based platform that helps patients understand, organize, and analyze
 | `GET /api/users/me` | Live (auth) | Bearer JWT required. Returns `{ success, user }` with nested `profile` (password excluded) |
 | `PUT /api/users/profile` | Live (auth) | Bearer JWT required. Accepts profile fields (`dateOfBirth`, `gender`, `bloodGroup`, `heightCm`, `weightKg`, `chronicConditions`, `lifestyle`). Updates logged-in user's profile, returns updated user |
 | `POST /api/chat` | Live (auth) | Bearer JWT required. Accepts `{ message }`. Loads `user.profile` + chronological reports, passes to [`services/aiService.js`](services/aiService.js) `generateChatResponse(message, profile, reports)` with JSON-stringified vault context in system prompt. Returns `{ success, reply }` |
+| `POST /api/prescriptions` | Live (auth) | Bearer JWT required. Accepts user-confirmed `{ medications, diagnoses, doctorAdvice, testsAdvised, reportDate, provenance }` from the review screen. Saves a `Report` with `documentType: "prescription"`, empty `measurements`, and a deterministic `aiInterpretation.summary` (no Gemini call on save). Returns `{ success, reportId }` |
 
 **Typical flow:** Marketing landing (`/`) → register/login → `/dashboard` upload report (`POST /api/upload`) → interpret (`POST /api/interpret`) → results dashboard with timeline scrubber, vitality chart, AI recommendation, and categorized biomarkers. Browse past reports via `/vault` (list table) → open `/dashboard?reportId=<id>`. Manual/debug: obtain token via `/api/auth/login`, then pass `Authorization: Bearer <token>` on protected routes.
 
-**Env:** `GEMINI_API_KEY` required for interpret; `JWT_SECRET` required for auth (documented in `.env.example`).
+**Env:** `GEMINI_API_KEY` required for interpret + prescription Vision; optional `GEMINI_VISION_MODEL` pins the Vision model (default `gemini-flash-latest`; set e.g. `gemini-2.5-flash` if the alias returns 503); `JWT_SECRET` required for auth (documented in `.env.example`).
 
 ---
 
@@ -103,7 +104,9 @@ flowchart TD
 
 **Extraction method on measurements:** `generalized_stripper`
 
-**Document routing (Stage 1):** [`services/extractionService.js`](services/extractionService.js) calls `classifyDocumentType()` ([`services/reportClassifier.js`](services/reportClassifier.js)) on the cleaned text to tag `structured.documentType` (`lab_report` | `prescription` | `scan_report` | `discharge_summary` | `typed_note` | `unknown`). Deterministic keyword scoring (word-boundary guards for short tokens). A `switch` routing seam currently sends every type through the lab pipeline; the prescription Vision lane plugs in here at Stage 2. `documentType` is orthogonal to the existing lab-panel `reportType` (CBC/LIPID/...).
+**Document routing (Stage 1 + 2a):** [`services/extractionService.js`](services/extractionService.js) resolves `documentType` from an explicit upload hint (the UI selector) or, on `auto`, from `classifyDocumentType()` ([`services/reportClassifier.js`](services/reportClassifier.js)) over the cleaned text (`lab_report` | `prescription` | `scan_report` | `discharge_summary` | `typed_note` | `unknown`; deterministic keyword scoring with word-boundary guards). The `switch` now routes `prescription` to the **Gemini Vision lane** and everything else to the deterministic lab pipeline. `documentType` is orthogonal to the lab-panel `reportType` (CBC/LIPID/...).
+
+**Prescription Vision lane (Stage 2a — I3/I6):** [`services/prescriptionService.js`](services/prescriptionService.js) loads the image (or PDF page 0), applies gentle `sharp` prep (rotate/upscale only — no grayscale/sharpen), and sends it directly to Gemini Vision via `extractPrescriptionFromImage()` in [`services/aiService.js`](services/aiService.js) (strict JSON schema: `medications[]`, `diagnoses[]`, `doctorAdvice[]`, `testsAdvised[]`, per-field `confidence`/`uncertain`). Extracted drug names are validated against [`utils/clinical/drugDictionary.js`](utils/clinical/drugDictionary.js) (`validateDrugName`, Levenshtein fuzzy match) which flags (never blocks) unknowns as `uncertain` with a suggestion. The user reviews/edits in a mandatory confirmation screen before `POST /api/prescriptions` persists the record. Numbers are NEVER extracted via the LLM. Multi-page PDF prescriptions are a known 2a constraint (page 0 only).
 
 ---
 
@@ -187,6 +190,8 @@ flowchart TD
 | Vault prototype UI + shared Footer | Done | `Vault.jsx` card archive from HTML mockup; lucide icons; `Footer.jsx` shared; `App.jsx` global footer on auth routes |
 | Chat Assistant UI prototype | Done | `Chat.jsx` from HTML mockup; `/chat` protected route; Navbar Assistant link; `chat-scroll` CSS |
 | Auth UI prototype + chat API | Done | Split Login/Register; back-to-home links; `POST /api/chat` with vault context; live Chat UI |
+| Stage 1 — Data model + routing | Done | `documentType` enum + entity sub-schemas; `classifyDocumentType()`; routing seam |
+| Stage 2a — Prescription Vision lane | Done | Gemini Vision `extractPrescriptionFromImage`; `prescriptionService`; drug dictionary; upload doc-type hint; review-then-save; `POST /api/prescriptions`; `PrescriptionCard` |
 
 ---
 
@@ -207,8 +212,8 @@ flowchart TD
 
 ## 7. Test status
 
-- **Unit tests:** **76/76 passing** (`npm test`)
-- **Coverage includes:** row stitcher, section extractor, generalized stripper, metadata prepass, interpret handler, profileContextBuilder, users route handlers, vitalityScore virtual, reports history handler, reports getById handler, aiContextGenerator, aiService (interpret + chat), chatContextBuilder, chat route handler, CBC PDF fixture, integration extraction, validation, traceability, unit normalizer
+- **Unit tests:** **94/94 passing** (`npm test`)
+- **Coverage includes:** row stitcher, section extractor, generalized stripper, metadata prepass, interpret handler, profileContextBuilder, users route handlers, vitalityScore virtual, reports history handler, reports getById handler, aiContextGenerator, aiService (interpret + chat + **prescription Vision**), chatContextBuilder, chat route handler, **drug dictionary, prescription service annotation, prescription save route**, CBC PDF fixture, integration extraction, validation, traceability, unit normalizer
 - **Golden layouts:** `CBC.pdf` (9/9 core CBC measurements), `reports.pdf` (vitamins, lipids, etc.)
 
 ---
@@ -217,12 +222,13 @@ flowchart TD
 
 | Area | Files |
 |------|-------|
-| Entry | `server.js`, `routes/upload.js`, `routes/interpret.js`, `routes/reports.js`, `routes/chat.js`, `routes/auth.js`, `routes/users.js` |
+| Entry | `server.js`, `routes/upload.js`, `routes/interpret.js`, `routes/prescription.js`, `routes/reports.js`, `routes/chat.js`, `routes/auth.js`, `routes/users.js` |
 | Database | `config/db.js`, `models/Report.js`, `models/User.js` |
 | Auth | `middleware/authMiddleware.js` (`protect`), `utils/formatUser.js` |
 | Profile / AI context | `utils/profileContextBuilder.js`, `utils/chatContextBuilder.js`, `routes/users.js`, `routes/chat.js` |
 | Orchestration | `services/extractionService.js` |
 | Clinical pipeline | `services/clinicalFilterService.js` |
+| Prescription lane | `services/prescriptionService.js`, `utils/clinical/drugDictionary.js`, `services/aiService.js` (`extractPrescriptionFromImage`) |
 | Sectioning | `services/sectionExtractor.js`, `utils/rowStitcher.js` |
 | Extractor | `utils/clinical/parameterRegexMap.js`, `utils/canonicalMap.json` |
 | Metadata | `utils/clinical/metadataPrepass.js` |
@@ -230,12 +236,13 @@ flowchart TD
 | AI interpretation | `services/aiService.js` |
 | Enrichment | `unitNormalizer.js`, `validationSanityEngine.js`, `reportClassifier.js`, `clinicalFlags.js`, `traceability.js` |
 | Manual UI | `index.html` |
-| React frontend | `client/src/App.jsx` (router shell + conditional Navbar/Footer), `client/src/pages/` (Landing, Login, Register, Dashboard, Vault, Chat, Profile), `client/src/components/Auth/` (`AuthBrandPanel`, `AuthBackHome`), `client/src/lib/api.js`, `client/src/lib/structured.js`, `client/src/components/Layout/Navbar.jsx`, `client/src/components/Layout/Footer.jsx`, `client/src/components/UploadZone.jsx`, `client/src/components/ProcessingView.jsx`, `client/src/components/Dashboard/` (`TimelineSelector`, `HealthTimelineCard`, `AIRecommendationCard`, `AISummaryCard`, `BiomarkerGrid`) |
+| React frontend | `client/src/App.jsx` (router shell + conditional Navbar/Footer), `client/src/pages/` (Landing, Login, Register, Dashboard, Vault, Chat, Profile), `client/src/components/Auth/` (`AuthBrandPanel`, `AuthBackHome`), `client/src/lib/api.js`, `client/src/lib/structured.js`, `client/src/components/Layout/Navbar.jsx`, `client/src/components/Layout/Footer.jsx`, `client/src/components/UploadZone.jsx` (doc-type selector), `client/src/components/ProcessingView.jsx`, `client/src/components/ReviewExtraction.jsx` (prescription confirmation), `client/src/components/Dashboard/` (`TimelineSelector`, `HealthTimelineCard`, `AIRecommendationCard`, `AISummaryCard`, `BiomarkerGrid`, `PrescriptionCard`) |
 
 ---
 
 ## 9. Changelog (recent)
 
+- **2026-06-09:** Stage 2a — Prescription Vision Lane (I3 + I6 + prescription-scoped review/save). New [`services/prescriptionService.js`](services/prescriptionService.js) (gentle `sharp` prep + Gemini Vision) and `extractPrescriptionFromImage()` in [`services/aiService.js`](services/aiService.js) (strict entity schema); [`utils/clinical/drugDictionary.js`](utils/clinical/drugDictionary.js) `validateDrugName()` fuzzy flagging; `prescription` case wired in [`services/extractionService.js`](services/extractionService.js) with an upload `documentType` hint override; new `POST /api/prescriptions` ([`routes/prescription.js`](routes/prescription.js)) save endpoint; `aiInterpretation.summary` relaxed to optional in [`models/Report.js`](models/Report.js). Frontend: upload doc-type selector ([`UploadZone.jsx`](client/src/components/UploadZone.jsx)), mandatory editable review screen ([`ReviewExtraction.jsx`](client/src/components/ReviewExtraction.jsx)) via new `APP_STATE.REVIEW`, and [`PrescriptionCard.jsx`](client/src/components/Dashboard/PrescriptionCard.jsx) dashboard display. Deferred to 2b: I4 printed-entity extraction, generalized I5 confirmation, multi-page PDF prescriptions. Smoke-tested end-to-end on a real handwritten dermatology OPD script (correctly read Acne grade 3 + scars and 3 topical meds); follow-ups from that run: added dermatology drugs to the dictionary, suppressed low-similarity (<0.6) "did you mean" suggestions, and added `GEMINI_VISION_MODEL` env pin (`gemini-flash-latest` alias was returning 503). 94 tests
 - **2026-06-08:** Stage 1 — Data Model & Document Routing Foundation. Expanded [`models/Report.js`](models/Report.js) with `documentType` enum + `medications`/`diagnoses`/`symptoms`/`doctorAdvice`/`testsAdvised`/`provenance` scaffolding (optional, defaulted, backward compatible). Added deterministic `classifyDocumentType()` to [`services/reportClassifier.js`](services/reportClassifier.js); routing seam in [`services/extractionService.js`](services/extractionService.js) (all types → lab pipeline for now); `documentType` threaded into upload log + persisted in [`routes/interpret.js`](routes/interpret.js). 76 tests
 - **2026-06-08:** Chat API alignment — `generateChatResponse(message, profile, reports)` with JSON system prompt; simplified `POST /api/chat` body; `sendChatMessage(message)`; Chat.jsx static welcome + `isTyping`; 68 tests
 - **2026-06-08:** Auth UI + Chat backend — split-screen [`Login.jsx`](client/src/pages/Login.jsx)/[`Register.jsx`](client/src/pages/Register.jsx) prototype; [`AuthBrandPanel`](client/src/components/Auth/AuthBrandPanel.jsx) + back-to-home links; Navbar hidden on auth routes; `POST /api/chat` with [`chatContextBuilder`](utils/chatContextBuilder.js) + `generateChatResponse`; live [`Chat.jsx`](client/src/pages/Chat.jsx); 68 tests

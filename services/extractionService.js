@@ -6,8 +6,17 @@ const { filterClinicalData } = require("./clinicalFilterService");
 const { stitchRows } = require("../utils/rowStitcher");
 const { extractSections } = require("./sectionExtractor");
 const { classifyDocumentType } = require("./reportClassifier");
+const { extractPrescription } = require("./prescriptionService");
 
-async function extractMedicalReportText(filePath) {
+const DOCUMENT_TYPE_HINTS = new Set([
+  "lab_report",
+  "prescription",
+  "scan_report",
+  "discharge_summary",
+  "typed_note",
+]);
+
+async function extractMedicalReportText(filePath, opts = {}) {
   const extension = path.extname(filePath).toLowerCase();
   let methodUsed = "unknown";
   let rawText = "";
@@ -35,15 +44,27 @@ async function extractMedicalReportText(filePath) {
   const allWords = ocrPages.flatMap((page) => page.words || []);
   const stitchedRows = stitchRows(fullLines, allWords);
   const sections = extractSections(stitchedRows);
-  const { documentType } = classifyDocumentType(cleanedTextFull);
 
-  // Routing seam: documentType decides which extraction lane runs. Stage 2
-  // plugs the prescription Vision lane in here. For now every document type
-  // flows through the deterministic lab pipeline (no behavior change).
-  let cleanedTextClinical;
+  // An explicit user-supplied hint (from the upload UI selector) overrides the
+  // deterministic classifier, which is unreliable on handwriting.
+  const hint = opts.documentTypeHint;
+  const documentType =
+    hint && hint !== "auto" && DOCUMENT_TYPE_HINTS.has(hint)
+      ? hint
+      : classifyDocumentType(cleanedTextFull).documentType;
+
+  // Routing seam: documentType decides which extraction lane runs. Prescriptions
+  // go through the Gemini Vision lane; everything else flows through the
+  // deterministic lab pipeline.
+  let cleanedTextClinical = "";
   let structured;
   switch (documentType) {
-    // case "prescription": (Stage 2) structured = await extractPrescription(...)
+    case "prescription": {
+      structured = await extractPrescription(filePath, extension, {
+        textHint: cleanedTextFull,
+      });
+      break;
+    }
     case "lab_report":
     default: {
       ({ cleanedTextClinical, structured } = filterClinicalData(cleanedTextFull, {

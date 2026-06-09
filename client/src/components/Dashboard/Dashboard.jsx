@@ -3,6 +3,7 @@ import { useReactToPrint } from 'react-to-print'
 import AIRecommendationCard from './AIRecommendationCard'
 import BiomarkerGrid from './BiomarkerGrid'
 import HealthTimelineCard from './HealthTimelineCard'
+import PrescriptionCard from './PrescriptionCard'
 import TimelineSelector from './TimelineSelector'
 import { Download } from 'lucide-react'
 
@@ -15,6 +16,8 @@ export default function Dashboard({ payload, history = [], activeReportId, onSel
   })
 
   if (!payload) return null
+
+  const isPrescription = payload.structured?.documentType === 'prescription'
 
   return (
     <div className="min-h-screen bg-background">
@@ -40,14 +43,23 @@ export default function Dashboard({ payload, history = [], activeReportId, onSel
         )}
 
         <div ref={componentRef} className="grid grid-cols-1 md:grid-cols-12 gap-6">
-          <HealthTimelineCard className="md:col-span-8" />
+          {isPrescription ? (
+            <>
+              <AIRecommendationCard data={payload.data} className="md:col-span-4" />
+              <PrescriptionCard structured={payload.structured} className="md:col-span-8" />
+            </>
+          ) : (
+            <>
+              <HealthTimelineCard className="md:col-span-8" />
 
-          <AIRecommendationCard data={payload.data} className="md:col-span-4" />
+              <AIRecommendationCard data={payload.data} className="md:col-span-4" />
 
-          <BiomarkerGrid
-            measurements={payload.structured?.measurements ?? []}
-            className="md:col-span-12"
-          />
+              <BiomarkerGrid
+                measurements={payload.structured?.measurements ?? []}
+                className="md:col-span-12"
+              />
+            </>
+          )}
         </div>
       </div>
     </div>

@@ -16,10 +16,17 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
   }
 
   const uploadedFilePath = req.file.path;
+  const documentTypeHint = req.body?.documentType;
 
   try {
     const { methodUsed, documentType, cleanedText, cleanedTextFull, cleanedTextClinical, structured } =
-      await extractMedicalReportText(uploadedFilePath);
+      await extractMedicalReportText(uploadedFilePath, { documentTypeHint });
+
+    structured.provenance = {
+      ...(structured.provenance || {}),
+      originalFilename: req.file.originalname,
+      extractionMethod: structured.provenance?.extractionMethod || methodUsed,
+    };
 
     logger.info("Extraction completed", {
       filename: req.file.originalname,
@@ -27,13 +34,16 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
       documentType,
       reportType: structured.reportType,
       fullTextLength: cleanedTextFull.length,
-      clinicalTextLength: cleanedTextClinical.length,
-      measurementCount: structured.measurements.length,
+      clinicalTextLength: (cleanedTextClinical || "").length,
+      measurementCount: (structured.measurements || []).length,
+      medicationCount: (structured.medications || []).length,
       flagCount: (structured.flags || []).length,
     });
-    logger.info("Clinical extraction preview", {
-      preview: cleanedTextClinical.slice(0, 250),
-    });
+    if (cleanedTextClinical) {
+      logger.info("Clinical extraction preview", {
+        preview: cleanedTextClinical.slice(0, 250),
+      });
+    }
 
     return res.status(200).json({
       success: true,

@@ -3,8 +3,14 @@ import { useSearchParams } from 'react-router-dom'
 import { Loader2 } from 'lucide-react'
 import UploadZone from '../components/UploadZone'
 import ProcessingView from '../components/ProcessingView'
+import ReviewExtraction from '../components/ReviewExtraction'
 import ReportDashboard from '../components/Dashboard/Dashboard'
-import { fetchReportHistory, uploadReport, interpretStructured } from '../lib/api'
+import {
+  fetchReportHistory,
+  uploadReport,
+  interpretStructured,
+  savePrescription,
+} from '../lib/api'
 import { APP_STATE, normalizeStructured, reportToDashboardPayload } from '../lib/structured'
 
 export default function Dashboard() {
@@ -14,6 +20,8 @@ export default function Dashboard() {
   const [appState, setAppState] = useState(APP_STATE.IDLE)
   const [history, setHistory] = useState([])
   const [dashboardData, setDashboardData] = useState(null)
+  const [reviewData, setReviewData] = useState(null)
+  const [saving, setSaving] = useState(false)
   const [error, setError] = useState(null)
   const [loadingHistory, setLoadingHistory] = useState(true)
 
@@ -74,12 +82,19 @@ export default function Dashboard() {
     setSearchParams({ reportId: id })
   }
 
-  async function handleFileSelected(file) {
+  async function handleFileSelected(file, documentType = 'auto') {
     setError(null)
     setAppState(APP_STATE.PROCESSING)
 
     try {
-      const uploadJson = await uploadReport(file)
+      const uploadJson = await uploadReport(file, documentType)
+
+      if (uploadJson.structured?.documentType === 'prescription') {
+        setReviewData(uploadJson.structured)
+        setAppState(APP_STATE.REVIEW)
+        return
+      }
+
       const interpretJson = await interpretStructured(uploadJson.structured)
 
       await loadHistory()
@@ -98,6 +113,28 @@ export default function Dashboard() {
     }
   }
 
+  async function handleConfirmPrescription(payload) {
+    setError(null)
+    setSaving(true)
+
+    try {
+      const json = await savePrescription(payload)
+      await loadHistory()
+      setReviewData(null)
+      setSearchParams({ reportId: json.reportId })
+    } catch (err) {
+      setError(err.message || 'Failed to save the prescription. Please try again.')
+    } finally {
+      setSaving(false)
+    }
+  }
+
+  function handleCancelReview() {
+    setReviewData(null)
+    setError(null)
+    setAppState(APP_STATE.IDLE)
+  }
+
   if (loadingHistory && appState !== APP_STATE.PROCESSING) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -108,6 +145,18 @@ export default function Dashboard() {
 
   if (appState === APP_STATE.PROCESSING) {
     return <ProcessingView />
+  }
+
+  if (appState === APP_STATE.REVIEW && reviewData) {
+    return (
+      <ReviewExtraction
+        structured={reviewData}
+        onConfirm={handleConfirmPrescription}
+        onCancel={handleCancelReview}
+        saving={saving}
+        error={error}
+      />
+    )
   }
 
   if (appState === APP_STATE.RESOLVED && dashboardData) {

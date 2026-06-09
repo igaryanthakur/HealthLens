@@ -89,4 +89,5 @@ async function extractTextFromPdf(filePath) {
 
 module.exports = {
   extractTextFromPdf,
+  renderPdfPagesToImages,
 };

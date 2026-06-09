@@ -55,14 +55,28 @@ export async function loginUser({ email, password }) {
   return json;
 }
 
-export async function uploadReport(file) {
+export async function uploadReport(file, documentType = 'auto') {
   const formData = new FormData();
+  formData.append('documentType', documentType);
   formData.append('report', file);
 
   const res = await fetch('/api/upload', {
     method: 'POST',
     headers: authHeaders(),
     body: formData,
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function savePrescription(payload) {
+  const res = await fetch('/api/prescriptions', {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify(payload),
   });
 
   return parseJsonResponse(res);

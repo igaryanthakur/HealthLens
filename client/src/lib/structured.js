@@ -1,6 +1,7 @@
 export const APP_STATE = {
   IDLE: 'IDLE',
   PROCESSING: 'PROCESSING',
+  REVIEW: 'REVIEW',
   RESOLVED: 'RESOLVED',
 }
 
@@ -25,8 +26,13 @@ export function reportToDashboardPayload(report) {
     data: report.aiInterpretation,
     structured: {
       reportType: report.reportType,
+      documentType: report.documentType,
       patient_info: { reportDate: report.reportDate },
       measurements: report.measurements ?? [],
+      medications: report.medications ?? [],
+      diagnoses: report.diagnoses ?? [],
+      doctorAdvice: report.doctorAdvice ?? [],
+      testsAdvised: report.testsAdvised ?? [],
     },
   }
 }

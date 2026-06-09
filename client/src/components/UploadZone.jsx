@@ -3,13 +3,20 @@ import { FileText, UploadCloud } from 'lucide-react'
 
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png'
 
+const DOC_TYPE_OPTIONS = [
+  { value: 'auto', label: 'Auto-detect' },
+  { value: 'lab_report', label: 'Lab report' },
+  { value: 'prescription', label: 'Prescription' },
+]
+
 export default function UploadZone({ onFileSelected, error, disabled = false }) {
   const inputRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
+  const [documentType, setDocumentType] = useState('auto')
 
   function handleFile(file) {
     if (!file || disabled) return
-    onFileSelected(file)
+    onFileSelected(file, documentType)
   }
 
   function handleDrop(e) {
@@ -40,6 +47,30 @@ export default function UploadZone({ onFileSelected, error, disabled = false }) 
             {error}
           </div>
         )}
+
+        <div className="mb-4">
+          <span className="block text-xs font-medium text-on-surface-variant mb-2">
+            Document type
+          </span>
+          <div className="inline-flex rounded-xl bg-surface-container-low p-1 gap-1">
+            {DOC_TYPE_OPTIONS.map((opt) => (
+              <button
+                key={opt.value}
+                type="button"
+                disabled={disabled}
+                onClick={() => setDocumentType(opt.value)}
+                className={[
+                  'px-3 py-1.5 rounded-lg text-sm transition-colors',
+                  documentType === opt.value
+                    ? 'bg-primary text-white shadow-sm'
+                    : 'text-on-surface-variant hover:bg-surface-container',
+                ].join(' ')}
+              >
+                {opt.label}
+              </button>
+            ))}
+          </div>
+        </div>
 
         <div
           role="button"
