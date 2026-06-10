@@ -1,0 +1,19 @@
+{
+  "version": 2,
+  "buildCommand": "npm run vercel-build",
+  "rewrites": [
+    {
+      "source": "/health",
+      "destination": "/server.js"
+    },
+    {
+      "source": "/((?!api/.*|.*\\..*).*)",
+      "destination": "/index.html"
+    }
+  ],
+  "functions": {
+    "server.js": {
+      "maxDuration": 60
+    }
+  }
+}

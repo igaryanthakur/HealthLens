@@ -43,6 +43,8 @@ flowchart LR
 
 **Commands:** `npm install` · `npm run dev` (API `:5000` + frontend `:5173`) · `npm test` · `npm run seed:demo` (see [docs/DEMO.md](docs/DEMO.md))
 
+**Vercel (full-stack):** `vercel-build` builds `client/dist` then copies to `public/` for static CDN; [`server.js`](server.js) is the Express function (no `outputDirectory` — avoids entrypoint-not-found in `client/dist`). App factory: [`createApp.js`](createApp.js). Set `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY` (and optional `CLOUDINARY_*`) in the Vercel dashboard. `functions.server.js.maxDuration` is 60s (Pro). `/health` is explicitly routed to `server.js` so it is not swallowed by the SPA rewrite.
+
 ---
 
 ## 3. Tech stack (as shipped)
@@ -183,7 +185,7 @@ Repository rollups are **computed on read** (no separate collection) via [`utils
 
 | Area | Files |
 |------|-------|
-| Entry | `server.js`, `routes/*.js`, `config/db.js` |
+| Entry | `server.js`, `createApp.js`, `routes/*.js`, `config/db.js` |
 | Auth | `middleware/authMiddleware.js`, `middleware/rateLimiters.js`, `routes/auth.js` |
 | Extraction | `services/extractionService.js`, `services/clinicalFilterService.js`, `utils/clinical/` |
 | AI | `services/aiService.js`, `utils/aiContextGenerator.js`, `utils/profileContextBuilder.js`, `utils/chatContextBuilder.js` |
@@ -198,6 +200,7 @@ Repository rollups are **computed on read** (no separate collection) via [`utils
 
 ## 9. Known limitations
 
+- **Vercel serverless:** Upload/OCR (`sharp`, `tesseract.js`, `@napi-rs/canvas`, `pdfjs-dist`) may hit the 250MB function bundle limit or timeout on Hobby (10s default; 60s requires Pro). In-memory rate limits reset per instance. If extraction fails in production, split hosting: Vercel for `client/dist`, Railway/Render/Fly for the API.
 - **Legacy reports:** `userId: "anonymous_patient"` string docs won't appear in scoped queries
 - **Legacy dev tester removed:** use React client or curl with Bearer token for API debugging
 - **OCR quirks:** Label overlap, occasional decimal misreads — mitigated by `maskLabels()`; AI contextualizes via reference ranges
@@ -242,6 +245,9 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
+- **2026-06-10:** Vercel restore — re-applied `createApp.js`, serverless `server.js` export, mongoose connection cache, tmp uploads, `vercel-build` → `public/`; `/health` rewrite to `server.js`; 203 tests.
+- **2026-06-10:** Vercel static deploy fix — `vercel-build` copies `client/dist` → `public/`; removed `outputDirectory` from `vercel.json` (fixes “No entrypoint found in output directory”).
+- **2026-06-10:** Vercel deployment fix — `createApp.js` factory (renamed from `app.js`); `server.js` exports Express for Vercel with DB middleware + `require.main` listen guard; removed broken `api/[...path].js` catch-all; `vercel.json` `maxDuration: 60`; mongoose connection cache + tmp upload dir retained; 203 tests.
 - **2026-06-10:** Cloudinary file storage — optional `CLOUDINARY_*` env; uploads persist authenticated originals; `GET /api/reports/:id/file` signed download; Vault download button; delete syncs Cloudinary asset; 203 tests.
 - **2026-06-10:** Public static pages — `/privacy`, `/terms`, `/contact`, `/careers`, `/blog` (+ check-ups article); Footer links wired via React Router. Repo cleanse: removed root `index.html`, `eng.traineddata`, `Context.txt`, dead dashboard components, unused `clsx`/`tailwind-merge`.
 - **2026-06-10:** Public documentation rewrite — [README.md](README.md), [client/README.md](client/README.md), and this file restructured for open-source onboarding; technical reference consolidated.

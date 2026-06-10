@@ -1,8 +1,12 @@
 const path = require("path");
+const fs = require("fs");
+const os = require("os");
 const multer = require("multer");
 
-const uploadsDir = path.join(process.cwd(), "uploads");
+const uploadsDir = path.join(os.tmpdir(), "healthlens-uploads");
 const maxSizeMB = Number(process.env.UPLOAD_MAX_SIZE_MB || 10);
+
+fs.mkdirSync(uploadsDir, { recursive: true });
 
 const allowedMimeTypes = new Set([
   "application/pdf",
