@@ -12,6 +12,7 @@ import Chat from './pages/Chat'
 import { getAuthToken } from './lib/api'
 
 const Vault = lazy(() => import('./pages/Vault'))
+const DoctorSummary = lazy(() => import('./pages/DoctorSummary'))
 
 function RouteLoader() {
   return (
@@ -31,7 +32,7 @@ function ProtectedRoute({ children }) {
 
 function AppContent() {
   const { pathname } = useLocation()
-  const hideGlobalFooter = ['/', '/login', '/register', '/chat'].includes(pathname)
+  const hideGlobalFooter = ['/', '/login', '/register', '/chat', '/doctor-summary'].includes(pathname)
   const hideNavbar = ['/login', '/register'].includes(pathname)
 
   return (
@@ -72,6 +73,16 @@ function AppContent() {
           element={
             <ProtectedRoute>
               <Chat />
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/doctor-summary"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<RouteLoader />}>
+                <DoctorSummary />
+              </Suspense>
             </ProtectedRoute>
           }
         />

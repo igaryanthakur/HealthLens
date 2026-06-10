@@ -11,6 +11,7 @@ import {
   ListFilter,
   Loader2,
   Search,
+  Stethoscope,
 } from 'lucide-react'
 import { fetchReportHistory } from '../lib/api'
 
@@ -181,6 +182,14 @@ export default function Vault() {
             />
           </div>
           <div className="flex gap-3 w-full md:w-auto">
+            <button
+              type="button"
+              onClick={() => navigate('/doctor-summary')}
+              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-primary text-on-primary rounded-full font-label-md hover:opacity-90 transition-all"
+            >
+              <Stethoscope size={20} />
+              Doctor Summary
+            </button>
             <button
               type="button"
               className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-outline-variant rounded-full text-on-surface-variant font-label-md hover:bg-surface-variant/30 transition-all"

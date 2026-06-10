@@ -8,6 +8,7 @@ const {
   timelineHandler,
   summaryHandler,
   insightsHandler,
+  doctorSummaryHandler,
 } = require("../routes/repository");
 
 function createMockRes() {
@@ -231,4 +232,77 @@ test("insights handler returns 500 when report loading fails", async () => {
   assert.equal(res.statusCode, 500);
   assert.equal(res.body.success, false);
   assert.match(res.body.message, /Failed to generate health insights/);
+});
+
+const doctorSummaryUser = {
+  _id: stubUserId,
+  name: "Priya Sharma",
+  email: "demo@healthlens.ai",
+  profile: { gender: "Female", chronicConditions: ["Type 2 Diabetes"] },
+};
+
+test("doctor summary handler returns the full summary contract", async () => {
+  const res = createMockRes();
+
+  await doctorSummaryHandler(req, res, {
+    findReports: async () => stubReports,
+    findUserById: async () => doctorSummaryUser,
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.summary.patient.name, "Priya Sharma");
+  assert.equal(res.body.summary.snapshot.totalReports, 2);
+  assert.ok(Array.isArray(res.body.summary.medications));
+  assert.ok(Array.isArray(res.body.summary.latestVitals));
+  assert.ok(Array.isArray(res.body.summary.timelineHighlights));
+  assert.ok(res.body.summary.disclaimer);
+  assert.ok(res.body.summary.generatedAt);
+  // Insight subset must not expose AI-vs-deterministic provenance.
+  assert.equal("generatedBy" in res.body.summary.insights, false);
+});
+
+test("doctor summary handler returns 404 when user is missing", async () => {
+  const res = createMockRes();
+
+  await doctorSummaryHandler(req, res, {
+    findReports: async () => stubReports,
+    findUserById: async () => null,
+  });
+
+  assert.equal(res.statusCode, 404);
+  assert.equal(res.body.success, false);
+  assert.match(res.body.message, /User not found/);
+});
+
+test("doctor summary handler returns 500 when report loading fails", async () => {
+  const res = createMockRes();
+
+  await doctorSummaryHandler(req, res, {
+    findReports: async () => {
+      throw new Error("Database connection lost");
+    },
+    findUserById: async () => doctorSummaryUser,
+  });
+
+  assert.equal(res.statusCode, 500);
+  assert.equal(res.body.success, false);
+  assert.match(res.body.message, /Failed to generate doctor summary/);
+});
+
+test("doctor summary handler returns 200 with empty arrays for no reports", async () => {
+  const res = createMockRes();
+
+  await doctorSummaryHandler(req, res, {
+    findReports: async () => [],
+    findUserById: async () => doctorSummaryUser,
+  });
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.summary.snapshot.totalReports, 0);
+  assert.equal(res.body.summary.snapshot.latestReportDate, null);
+  assert.deepEqual(res.body.summary.medications, []);
+  assert.deepEqual(res.body.summary.latestVitals, []);
+  assert.deepEqual(res.body.summary.abnormalMarkers, []);
 });

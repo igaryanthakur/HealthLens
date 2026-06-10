@@ -212,6 +212,14 @@ export async function fetchRepositoryInsights() {
   return parseJsonResponse(res);
 }
 
+export async function fetchDoctorSummary() {
+  const res = await fetch('/api/repository/doctor-summary', {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
 export async function fetchCurrentUser() {
   const res = await fetch('/api/users/me', {
     headers: authHeaders(),

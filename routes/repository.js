@@ -14,6 +14,7 @@ const {
   buildInsightsContext,
   buildDeterministicInsights,
 } = require("../utils/longitudinalInsights");
+const { buildDoctorSummary } = require("../utils/doctorSummaryBuilder");
 const { generateLongitudinalInsights } = require("../services/aiService");
 
 const router = express.Router();
@@ -145,6 +146,45 @@ async function insightsHandler(req, res, deps = {}) {
   });
 }
 
+// Doctor Summary (Stage 2.1). Like insights, it needs both the user profile and
+// the full report history, so it cannot use makeHandler. Fully deterministic
+// (no Gemini): the longitudinal insight block is rebuilt via
+// buildDeterministicInsights. Empty reports still return 200 with a populated
+// patient block and empty arrays.
+async function doctorSummaryHandler(req, res, deps = {}) {
+  const findReports = deps.findReports ?? (() => defaultFindReports(req));
+  const findUserById = deps.findUserById ?? ((id) => User.findById(id));
+  const buildInsights = deps.buildInsights ?? buildDeterministicInsights;
+  const buildSummary = deps.buildSummary ?? buildDoctorSummary;
+
+  let user;
+  let reports;
+  try {
+    [user, reports] = await Promise.all([
+      findUserById(req.user.id),
+      findReports(),
+    ]);
+  } catch (error) {
+    logger.error("Doctor summary load failed", { error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to generate doctor summary.",
+    });
+  }
+
+  if (!user) {
+    return res.status(404).json({ success: false, message: "User not found." });
+  }
+
+  const context = buildInsightsContext({ reports, user });
+  const insights = buildInsights(context);
+
+  return res.json({
+    success: true,
+    summary: buildSummary({ user, reports, insights }),
+  });
+}
+
 router.get("/medications", protect, medicationsHandler);
 router.get("/diagnoses", protect, diagnosesHandler);
 router.get("/symptoms", protect, symptomsHandler);
@@ -152,6 +192,7 @@ router.get("/advice", protect, adviceHandler);
 router.get("/timeline", protect, timelineHandler);
 router.get("/summary", protect, summaryHandler);
 router.get("/insights", protect, insightsHandler);
+router.get("/doctor-summary", protect, doctorSummaryHandler);
 
 module.exports = router;
 module.exports.medicationsHandler = medicationsHandler;
@@ -161,3 +202,4 @@ module.exports.adviceHandler = adviceHandler;
 module.exports.timelineHandler = timelineHandler;
 module.exports.summaryHandler = summaryHandler;
 module.exports.insightsHandler = insightsHandler;
+module.exports.doctorSummaryHandler = doctorSummaryHandler;

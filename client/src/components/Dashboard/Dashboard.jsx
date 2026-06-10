@@ -1,6 +1,7 @@
 import { useRef } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { useReactToPrint } from 'react-to-print'
-import { Download } from 'lucide-react'
+import { Download, Stethoscope } from 'lucide-react'
 import VitalitySnapshotCard from './VitalitySnapshotCard'
 import MiniCalendarCard from './MiniCalendarCard'
 import NeedsAttentionCard from './NeedsAttentionCard'
@@ -25,10 +26,25 @@ export default function Dashboard({
   insightsError = null,
 }) {
   const componentRef = useRef(null)
+  const navigate = useNavigate()
 
   const handlePrint = useReactToPrint({
     contentRef: componentRef,
     documentTitle: 'HealthLens_AI_Report',
+    pageStyle: `
+      @page {
+        size: A4;
+        margin: 14mm;
+      }
+
+      @media print {
+        body {
+          -webkit-print-color-adjust: exact;
+          print-color-adjust: exact;
+          background: white;
+        }
+      }
+    `,
   })
 
   if (!payload) return null
@@ -63,14 +79,24 @@ export default function Dashboard({
               {greeting}
             </h1>
           </div>
-          <button
-            type="button"
-            onClick={() => handlePrint()}
-            className="self-start sm:self-auto inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 hover:text-teal-700 hover:border-teal-200 px-4 py-2.5 rounded-xl text-sm font-medium shadow-sm transition-colors print:hidden"
-          >
-            <Download size={16} />
-            Export Report
-          </button>
+          <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto print:hidden">
+            <button
+              type="button"
+              onClick={() => navigate('/doctor-summary')}
+              className="inline-flex items-center gap-2 bg-teal-700 text-white hover:bg-teal-800 px-4 py-2.5 rounded-xl text-sm font-medium shadow-sm transition-colors"
+            >
+              <Stethoscope size={16} />
+              Doctor Summary
+            </button>
+            <button
+              type="button"
+              onClick={() => handlePrint()}
+              className="inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 hover:text-teal-700 hover:border-teal-200 px-4 py-2.5 rounded-xl text-sm font-medium shadow-sm transition-colors"
+            >
+              <Download size={16} />
+              Export Current Report
+            </button>
+          </div>
         </div>
 
         {/* Report switcher */}
