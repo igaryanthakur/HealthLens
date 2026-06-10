@@ -19,11 +19,11 @@ const publicDir = path.join(__dirname, "public");
 const indexHtmlPath = path.join(publicDir, "index.html");
 
 /**
- * On Vercel, zero-config Express receives `/` before the CDN can serve `public/`.
- * When `vercel-build` has populated `public/`, serve the SPA + assets from Express.
+ * Local-only: serve `public/` from Express after `npm run vercel-build`.
+ * On Vercel, `outputDirectory: public` + `api/index.js` serves static assets from the CDN.
  */
 function attachProductionFrontend(app) {
-  if (!fs.existsSync(indexHtmlPath)) {
+  if (process.env.VERCEL === "1" || !fs.existsSync(indexHtmlPath)) {
     return;
   }
 
@@ -37,9 +37,13 @@ function attachProductionFrontend(app) {
 
     const relativePath =
       req.path === "/" ? "index.html" : req.path.replace(/^\//, "");
-    const filePath = path.normalize(path.join(publicDir, relativePath));
+    const publicRoot = path.resolve(publicDir);
+    const filePath = path.resolve(publicDir, relativePath);
 
-    if (!filePath.startsWith(publicDir)) {
+    if (
+      filePath !== publicRoot &&
+      !filePath.startsWith(publicRoot + path.sep)
+    ) {
       return next();
     }
 

@@ -22,13 +22,17 @@ buildApp(app);
 const PORT = Number(process.env.PORT || 5000);
 
 if (require.main === module) {
-  const server = app.listen(PORT, () => {
+  const server = app.listen(PORT);
+
+  server.once("listening", () => {
     logger.info(`Server running on http://localhost:${PORT}`);
   });
 
-  server.on("error", (err) => {
+  server.once("error", (err) => {
     if (err.code === "EADDRINUSE") {
-      logger.error(`Port ${PORT} is already in use. Stop the other process or set PORT in .env.`);
+      logger.error(
+        `Port ${PORT} is already in use. Stop the other process (Task Manager / kill port ${PORT}) or set PORT in .env.`
+      );
     } else {
       logger.error("Server failed to start", { error: err.message });
     }

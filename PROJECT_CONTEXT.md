@@ -1,6 +1,6 @@
 # HealthLens AI — Project Context
 
-**Last Updated:** Wednesday, June 10, 2026 (Vercel SPA frontend fix)  
+**Last Updated:** Wednesday, June 10, 2026 (Vercel static + api split)  
 **Status:** Eval-ready · **203/203** tests · freeze (bug fixes + docs only)
 
 > Contributor and agent reference. For onboarding, start with [README.md](README.md).
@@ -43,7 +43,7 @@ flowchart LR
 
 **Commands:** `npm install` · `npm run dev` (API `:5000` + frontend `:5173`) · `npm test` · `npm run seed:demo` (see [docs/DEMO.md](docs/DEMO.md))
 
-**Vercel (full-stack):** `vercel-build` builds `client/dist` then copies to `public/`; [`server.js`](server.js) is the Express function (no `outputDirectory`). Zero-config Express receives `/` before the CDN, so [`createApp.js`](createApp.js) `attachProductionFrontend` serves `public/index.html` and assets via `sendFile` when `public/` exists; `includeFiles` bundles `public/**` into the function. Set `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY` (and optional `CLOUDINARY_*`) in the Vercel dashboard. `functions.server.js.maxDuration` is 60s (Pro). `/health` and `/api/*` are explicitly routed to `server.js`.
+**Vercel (full-stack):** `vercel-build` → `public/`; `vercel.json` sets `outputDirectory: public` (CDN serves React + `/assets/*`). API only: [`api/index.js`](api/index.js) (`/api/*`, `/health`); root [`server.js`](server.js) is in [`.vercelignore`](.vercelignore) so zero-config Express does not hijack `/`. Local `npm start` may still serve `public/` via `attachProductionFrontend` when not on Vercel. **Dev UI:** `http://localhost:5173` (Vite), not `:5000`. Set `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY` (and optional `CLOUDINARY_*`) in the Vercel dashboard. `api/index.js` `maxDuration` 60s (Pro).
 
 ---
 
@@ -245,7 +245,8 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
-- **2026-06-10:** Vercel SPA fix — `attachProductionFrontend` in `createApp.js` serves `public/` from Express (`sendFile`); `includeFiles` adds `public/**` to `server.js` bundle (fixes `/` 404 while `/health` worked).
+- **2026-06-10:** Vercel static/API split — `outputDirectory: public` + `api/index.js` for API; `.vercelignore` excludes root `server.js` (fixes `exports is not defined` from serving JS through serverless); local dev UI on `:5173`.
+- **2026-06-10:** Vercel SPA fix — `attachProductionFrontend` in `createApp.js` (local-only after split).
 - **2026-06-10:** Vercel runtime fix — lazy-load extraction on upload; `@napi-rs/canvas` polyfill before `pdf-parse`; `includeFiles` for native canvas on `server.js`; explicit `/api` rewrite.
 - **2026-06-10:** Vercel restore — re-applied `createApp.js`, serverless `server.js` export, mongoose connection cache, tmp uploads, `vercel-build` → `public/`; `/health` rewrite to `server.js`; 203 tests.
 - **2026-06-10:** Vercel static deploy fix — `vercel-build` copies `client/dist` → `public/`; removed `outputDirectory` from `vercel.json` (fixes “No entrypoint found in output directory”).
