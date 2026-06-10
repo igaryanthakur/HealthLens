@@ -5,7 +5,16 @@ const AI_TIMEOUT_MS = {
   chat: 15_000,
   prescriptionVision: 30_000,
   documentEntity: 20_000,
+  // Short timeout + no retry: this card is "better wording" over an already
+  // strong deterministic brief, so it must never make the dashboard wait.
+  longitudinalInsights: 8_000,
 };
+
+const LONGITUDINAL_DISCLAIMER =
+  "HealthLens AI provides informational insights based on uploaded records. It does not diagnose, prescribe treatment, or replace professional medical advice.";
+
+const LONGITUDINAL_SYSTEM_INSTRUCTION =
+  "You are HealthLens AI, a medically safe personal health intelligence assistant. Use only the structured health history provided. Do not diagnose, prescribe, or invent facts. Explain trends using cautious language such as \"may indicate\", \"trend observed\", and \"worth discussing with your doctor\". Always include a safety disclaimer.";
 
 const RETRYABLE_STATUSES = new Set([429, 500, 502, 503, 504]);
 
@@ -429,6 +438,130 @@ async function extractEntitiesFromText(text, deps = {}) {
   }
 }
 
+/**
+ * Builds the Gemini model used to reword deterministic longitudinal facts into
+ * a patient-friendly, medically safe health intelligence brief. Strict JSON
+ * schema keeps the response shape stable for the dashboard card.
+ */
+const getLongitudinalModel = () => {
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error("GEMINI_API_KEY is missing from the environment variables.");
+  }
+
+  const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+  const stringList = {
+    type: SchemaType.ARRAY,
+    items: { type: SchemaType.STRING },
+  };
+
+  return genAI.getGenerativeModel({
+    model: "gemini-flash-latest",
+    systemInstruction: LONGITUDINAL_SYSTEM_INSTRUCTION,
+    generationConfig: {
+      responseMimeType: "application/json",
+      responseSchema: {
+        type: SchemaType.OBJECT,
+        properties: {
+          summary: {
+            type: SchemaType.STRING,
+            description:
+              "A 2-4 sentence plain-language overview of what changed across the patient's lab history.",
+          },
+          whatChanged: stringList,
+          improvingSignals: stringList,
+          needsAttention: stringList,
+          riskFlags: stringList,
+          doctorQuestions: stringList,
+          followUpSuggestions: stringList,
+          disclaimer: { type: SchemaType.STRING },
+        },
+        required: [
+          "summary",
+          "whatChanged",
+          "improvingSignals",
+          "needsAttention",
+          "riskFlags",
+          "doctorQuestions",
+          "followUpSuggestions",
+          "disclaimer",
+        ],
+      },
+    },
+  });
+};
+
+function asStringArray(value) {
+  if (!Array.isArray(value)) return [];
+  return value
+    .map((item) => (typeof item === "string" ? item.trim() : String(item ?? "").trim()))
+    .filter(Boolean);
+}
+
+// Coerces a parsed Gemini payload into the canonical insights shape: every list
+// is an array, the disclaimer is always present, and generatedBy is tagged.
+function normalizeLongitudinalInsights(parsed) {
+  const summary =
+    typeof parsed?.summary === "string" && parsed.summary.trim()
+      ? parsed.summary.trim()
+      : "";
+
+  return {
+    summary,
+    whatChanged: asStringArray(parsed?.whatChanged),
+    improvingSignals: asStringArray(parsed?.improvingSignals),
+    needsAttention: asStringArray(parsed?.needsAttention),
+    riskFlags: asStringArray(parsed?.riskFlags),
+    doctorQuestions: asStringArray(parsed?.doctorQuestions),
+    followUpSuggestions: asStringArray(parsed?.followUpSuggestions),
+    disclaimer:
+      typeof parsed?.disclaimer === "string" && parsed.disclaimer.trim()
+        ? parsed.disclaimer.trim()
+        : LONGITUDINAL_DISCLAIMER,
+    generatedBy: "ai",
+  };
+}
+
+/**
+ * Rewords the deterministic longitudinal context into a patient-friendly brief.
+ * Numbers/deltas are computed deterministically upstream; Gemini only explains.
+ * Throws a clean error on failure (including malformed JSON) so the route can
+ * fall back to deterministic insights.
+ *
+ * @param {Object} context - Structured-only insights context (no raw OCR text).
+ * @param {Object} deps - { getModel? } for testing.
+ * @returns {Promise<Object>} Normalized insights with generatedBy="ai".
+ */
+async function generateLongitudinalInsights(context, deps = {}) {
+  try {
+    const model = deps.getModel ? deps.getModel() : getLongitudinalModel();
+
+    const userMessage = `Here is the patient's structured health history. Explain what changed across their lab reports using cautious, non-diagnostic language.\n\n${JSON.stringify(
+      context ?? {},
+    )}`;
+
+    // Single attempt only (no callWithSingleRetry): a retried timeout could
+    // block the dashboard for ~40s; the route falls back to deterministic fast.
+    const result = await withTimeout(
+      model.generateContent({
+        contents: [
+          {
+            role: "user",
+            parts: [{ text: userMessage }],
+          },
+        ],
+      }),
+      AI_TIMEOUT_MS.longitudinalInsights,
+      "Longitudinal insights",
+    );
+
+    const parsed = JSON.parse(result.response.text());
+    return normalizeLongitudinalInsights(parsed);
+  } catch (error) {
+    console.error("HealthLens AI Longitudinal Insights Error:", error.message);
+    throw new Error("Failed to generate longitudinal insights.");
+  }
+}
+
 function buildChatSystemInstruction(userProfile, userHistory) {
   return `You are HealthLens AI, an empathetic and highly intelligent clinical assistant. You have access to the user's secure Health Vault.
 
@@ -487,6 +620,7 @@ module.exports = {
   generateInterpretation,
   extractPrescriptionFromImage,
   extractEntitiesFromText,
+  generateLongitudinalInsights,
   generateChatResponse,
   buildChatSystemInstruction,
   createChatModel,

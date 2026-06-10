@@ -1,11 +1,8 @@
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Sparkles } from 'lucide-react'
+import { ArrowRight, MessageCircle } from 'lucide-react'
 
-export default function AIInsightsBanner({ insight, className = '' }) {
+export default function AIInsightsBanner({ className = '' }) {
   const navigate = useNavigate()
-  const text =
-    insight ||
-    'Upload and interpret a report to receive personalized, longitudinal AI insights about your health trends.'
 
   return (
     <div
@@ -17,13 +14,16 @@ export default function AIInsightsBanner({ insight, className = '' }) {
       />
       <div className="flex items-start gap-4 relative">
         <span className="h-11 w-11 shrink-0 rounded-2xl bg-white/10 flex items-center justify-center">
-          <Sparkles size={22} className="text-teal-200" />
+          <MessageCircle size={22} className="text-teal-200" />
         </span>
         <div>
           <p className="text-xs font-semibold uppercase tracking-wide text-teal-300 mb-1">
-            AI Insights
+            Ask HealthLens Assistant
           </p>
-          <p className="text-sm md:text-base leading-relaxed text-teal-50 max-w-2xl">{text}</p>
+          <p className="text-sm md:text-base leading-relaxed text-teal-50 max-w-2xl">
+            Have a question about your records? Ask the assistant about trends, medications, or what
+            to discuss with your doctor — grounded only in your uploaded reports.
+          </p>
         </div>
       </div>
 
@@ -32,7 +32,7 @@ export default function AIInsightsBanner({ insight, className = '' }) {
         onClick={() => navigate('/chat')}
         className="relative shrink-0 inline-flex items-center gap-2 bg-white text-teal-900 hover:bg-teal-50 font-semibold text-sm rounded-xl px-5 py-3 transition-colors"
       >
-        View Deep Dive
+        Open Assistant
         <ArrowRight size={16} />
       </button>
     </div>

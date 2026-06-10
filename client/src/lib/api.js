@@ -1,4 +1,5 @@
 const AUTH_TOKEN_KEY = 'healthlens_auth_token';
+const INSIGHTS_CACHE_KEY = 'healthlens_insights_cache';
 
 async function parseJsonResponse(res) {
   const json = await res.json().catch(() => ({}));
@@ -19,11 +20,38 @@ export function getAuthToken() {
 }
 
 export function setAuthToken(token) {
+  // A new session invalidates any cached insights (handles login #1 refresh).
+  clearCachedInsights();
   localStorage.setItem(AUTH_TOKEN_KEY, token);
 }
 
 export function clearAuthToken() {
+  clearCachedInsights();
   localStorage.removeItem(AUTH_TOKEN_KEY);
+}
+
+// Longitudinal insights are cached client-side so the (token-costing) endpoint
+// is only hit on login and after a new upload — never on a plain dashboard
+// open/reload.
+export function getCachedInsights() {
+  try {
+    const raw = localStorage.getItem(INSIGHTS_CACHE_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+
+export function setCachedInsights(data) {
+  try {
+    localStorage.setItem(INSIGHTS_CACHE_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore quota/serialization errors; the cache is best-effort.
+  }
+}
+
+export function clearCachedInsights() {
+  localStorage.removeItem(INSIGHTS_CACHE_KEY);
 }
 
 function authHeaders() {
@@ -170,6 +198,14 @@ export async function fetchHealthTimeline() {
 
 export async function fetchRepositorySummary() {
   const res = await fetch('/api/repository/summary', {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function fetchRepositoryInsights() {
+  const res = await fetch('/api/repository/insights', {
     headers: authHeaders(),
   });
 

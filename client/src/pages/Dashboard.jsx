@@ -7,11 +7,26 @@ import ReviewExtraction from '../components/ReviewExtraction'
 import ReportDashboard from '../components/Dashboard/Dashboard'
 import {
   fetchReportHistory,
+  fetchRepositoryInsights,
+  getCachedInsights,
+  setCachedInsights,
   uploadReport,
   interpretStructured,
   saveReviewedDocument,
 } from '../lib/api'
 import { APP_STATE, normalizeStructured, reportToDashboardPayload } from '../lib/structured'
+
+// Cache signature derived from the report set. Cached insights are reused only
+// when this matches current history, so a re-seed / cross-tab Atlas edit / new
+// report invalidates the cache even though the auth token still exists.
+function computeInsightsSignature(reports = []) {
+  return reports
+    .map(
+      (r) =>
+        `${r._id}:${r.reportDate}:${r.measurements?.length ?? 0}:${r.medications?.length ?? 0}`,
+    )
+    .join('|')
+}
 
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams()
@@ -25,11 +40,46 @@ export default function Dashboard() {
   const [error, setError] = useState(null)
   const [aiUnavailableNotice, setAiUnavailableNotice] = useState(null)
   const [loadingHistory, setLoadingHistory] = useState(true)
+  const [insights, setInsights] = useState(null)
+  const [insightsLoading, setInsightsLoading] = useState(false)
+  const [insightsError, setInsightsError] = useState(null)
 
   const loadHistory = useCallback(async () => {
     const json = await fetchReportHistory()
     setHistory(json.reports ?? [])
     return json.reports ?? []
+  }, [])
+
+  // Longitudinal insights are cached client-side keyed by a history signature.
+  // A plain dashboard open/reload reuses the cache (no token-costing call) only
+  // when the signature still matches; login resets the cache and uploads/saves
+  // pass force, so the endpoint is hit just on login, upload, or stale data.
+  const loadInsights = useCallback(async (reports = [], { force = false } = {}) => {
+    const signature = computeInsightsSignature(reports)
+
+    if (!force) {
+      const cached = getCachedInsights()
+      if (cached && cached.signature === signature) {
+        setInsights(cached.insights ?? null)
+        return
+      }
+    }
+
+    setInsightsLoading(true)
+    setInsightsError(null)
+    try {
+      const json = await fetchRepositoryInsights()
+      setInsights(json.insights ?? null)
+      setCachedInsights({
+        signature,
+        insights: json.insights ?? null,
+        generatedAt: json.generatedAt,
+      })
+    } catch (err) {
+      setInsightsError(err.message || 'Failed to load health insights.')
+    } finally {
+      setInsightsLoading(false)
+    }
   }, [])
 
   useEffect(() => {
@@ -40,7 +90,8 @@ export default function Dashboard() {
       setError(null)
 
       try {
-        await loadHistory()
+        const reports = await loadHistory()
+        if (!cancelled) loadInsights(reports)
       } catch (err) {
         if (!cancelled) setError(err.message || 'Failed to load report history.')
       } finally {
@@ -53,7 +104,7 @@ export default function Dashboard() {
     return () => {
       cancelled = true
     }
-  }, [loadHistory])
+  }, [loadHistory, loadInsights])
 
   useEffect(() => {
     if (loadingHistory) return
@@ -102,7 +153,8 @@ export default function Dashboard() {
 
       const interpretJson = await interpretStructured(uploadJson.structured)
 
-      await loadHistory()
+      const reports = await loadHistory()
+      loadInsights(reports, { force: true })
       setSearchParams({ reportId: interpretJson.reportId })
 
       if (interpretJson.aiUnavailable) {
@@ -130,7 +182,8 @@ export default function Dashboard() {
 
     try {
       const json = await saveReviewedDocument(payload)
-      await loadHistory()
+      const reports = await loadHistory()
+      loadInsights(reports, { force: true })
       setReviewData(null)
       setSearchParams({ reportId: json.reportId })
     } catch (err) {
@@ -184,6 +237,9 @@ export default function Dashboard() {
           history={history}
           activeReportId={dashboardData._id}
           onSelectReport={handleTimelineSelect}
+          insights={insights}
+          insightsLoading={insightsLoading}
+          insightsError={insightsError}
         />
       </>
     )

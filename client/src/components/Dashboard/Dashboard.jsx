@@ -4,6 +4,7 @@ import { Download } from 'lucide-react'
 import VitalitySnapshotCard from './VitalitySnapshotCard'
 import MiniCalendarCard from './MiniCalendarCard'
 import NeedsAttentionCard from './NeedsAttentionCard'
+import LongitudinalInsightsCard from './LongitudinalInsightsCard'
 import AIInsightsBanner from './AIInsightsBanner'
 import TrendAnalyticsCard from './TrendAnalyticsCard'
 import BiomarkerGrid from './BiomarkerGrid'
@@ -14,7 +15,15 @@ function getActiveReport(history, activeReportId) {
   return history.find((r) => String(r._id) === String(activeReportId)) || null
 }
 
-export default function Dashboard({ payload, history = [], activeReportId, onSelectReport }) {
+export default function Dashboard({
+  payload,
+  history = [],
+  activeReportId,
+  onSelectReport,
+  insights = null,
+  insightsLoading = false,
+  insightsError = null,
+}) {
   const componentRef = useRef(null)
 
   const handlePrint = useReactToPrint({
@@ -28,11 +37,13 @@ export default function Dashboard({ payload, history = [], activeReportId, onSel
   const isEntityDocument = Boolean(documentType) && documentType !== 'lab_report'
 
   const activeReport = getActiveReport(history, activeReportId)
+  const labReportCount = history.filter(
+    (r) => !r.documentType || r.documentType === 'lab_report',
+  ).length
   const measurements = payload.structured?.measurements ?? []
   const alerts = measurements.filter((m) => m.status === 'low' || m.status === 'high')
   const vitalityScore =
     typeof activeReport?.vitalityScore === 'number' ? activeReport.vitalityScore : 100
-  const insight = payload.data?.recommendations?.[0] || payload.data?.summary || ''
 
   const greeting =
     alerts.length > 0
@@ -85,6 +96,14 @@ export default function Dashboard({ payload, history = [], activeReportId, onSel
             />
           </div>
 
+          {/* Flagship longitudinal brief — whole-history, always visible */}
+          <LongitudinalInsightsCard
+            insights={insights}
+            loading={insightsLoading}
+            error={insightsError}
+            labReportCount={labReportCount}
+          />
+
           {/* Middle: attention + trend, or document entities */}
           {isEntityDocument ? (
             <DocumentEntitiesCard structured={payload.structured} />
@@ -95,8 +114,8 @@ export default function Dashboard({ payload, history = [], activeReportId, onSel
             </div>
           )}
 
-          {/* AI insights banner */}
-          <AIInsightsBanner insight={insight} />
+          {/* Assistant CTA */}
+          <AIInsightsBanner />
 
           {/* Full biomarker breakdown for the selected report */}
           {!isEntityDocument && measurements.length > 0 && (

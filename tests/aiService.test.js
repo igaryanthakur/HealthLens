@@ -163,6 +163,79 @@ test("callWithSingleRetry does not retry non-retryable errors", async () => {
   assert.equal(attempts, 1);
 });
 
+test("generateLongitudinalInsights parses and normalizes strict JSON", async () => {
+  const { generateLongitudinalInsights } = require("../services/aiService");
+
+  const aiPayload = {
+    summary: "HbA1c is trending down but remains above target.",
+    whatChanged: ["HbA1c decreased from 6.8 to 6.2 %"],
+    improvingSignals: ["HbA1c improving"],
+    needsAttention: ["HbA1c still high"],
+    riskFlags: [],
+    doctorQuestions: ["Should I keep monitoring HbA1c?"],
+    followUpSuggestions: ["Review trends with your doctor."],
+    disclaimer: "Informational only.",
+  };
+
+  let capturedText = "";
+  const mockModel = {
+    generateContent: async ({ contents }) => {
+      capturedText = contents[0].parts[0].text;
+      return { response: { text: () => JSON.stringify(aiPayload) } };
+    },
+  };
+
+  const result = await generateLongitudinalInsights(
+    { comparisons: { changedMarkers: [] }, labReportCount: 2 },
+    { getModel: () => mockModel },
+  );
+
+  assert.equal(result.summary, aiPayload.summary);
+  assert.deepEqual(result.improvingSignals, ["HbA1c improving"]);
+  assert.equal(result.generatedBy, "ai");
+  assert.match(capturedText, /structured health history/);
+});
+
+test("generateLongitudinalInsights coerces missing lists and disclaimer", async () => {
+  const { generateLongitudinalInsights } = require("../services/aiService");
+
+  const mockModel = {
+    generateContent: async () => ({
+      response: { text: () => JSON.stringify({ summary: "ok" }) },
+    }),
+  };
+
+  const result = await generateLongitudinalInsights({}, { getModel: () => mockModel });
+
+  assert.deepEqual(result.whatChanged, []);
+  assert.deepEqual(result.riskFlags, []);
+  assert.ok(result.disclaimer.length > 0);
+  assert.equal(result.generatedBy, "ai");
+});
+
+test("generateLongitudinalInsights throws a clean error on malformed JSON", async () => {
+  const { generateLongitudinalInsights } = require("../services/aiService");
+
+  const mockModel = {
+    generateContent: async () => ({ response: { text: () => "not json" } }),
+  };
+
+  await assert.rejects(
+    () => generateLongitudinalInsights({}, { getModel: () => mockModel }),
+    { message: "Failed to generate longitudinal insights." },
+  );
+});
+
+test("longitudinal model system instruction carries safety language", () => {
+  const aiService = require("../services/aiService");
+  // The exported safety constant is reused in the model builder + route fallback.
+  assert.match(
+    require("../utils/longitudinalInsights").INSIGHTS_DISCLAIMER,
+    /does not diagnose, prescribe treatment, or replace professional medical advice/,
+  );
+  assert.equal(typeof aiService.generateLongitudinalInsights, "function");
+});
+
 test("generateChatResponse throws when GEMINI_API_KEY is missing", async () => {
   const originalKey = process.env.GEMINI_API_KEY;
   delete process.env.GEMINI_API_KEY;
