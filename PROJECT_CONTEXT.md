@@ -245,7 +245,8 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
-- **2026-06-10:** Vercel static/API split — `outputDirectory: public` + `api/index.js` for API; `.vercelignore` excludes root `server.js` (fixes `exports is not defined` from serving JS through serverless); local dev UI on `:5173`.
+- **2026-06-10:** Vercel static JS fix — Vite emits `.mjs` chunks so Vercel does not transpile browser bundles to CommonJS (`exports is not defined`); `format: 'es'` + `npm ci --include=dev` in `vercel-build`.
+- **2026-06-10:** Vercel static/API split — `outputDirectory: public` + `api/index.js` for API; `.vercelignore` excludes root `server.js`; local dev UI on `:5173`.
 - **2026-06-10:** Vercel SPA fix — `attachProductionFrontend` in `createApp.js` (local-only after split).
 - **2026-06-10:** Vercel runtime fix — lazy-load extraction on upload; `@napi-rs/canvas` polyfill before `pdf-parse`; `includeFiles` for native canvas on `server.js`; explicit `/api` rewrite.
 - **2026-06-10:** Vercel restore — re-applied `createApp.js`, serverless `server.js` export, mongoose connection cache, tmp uploads, `vercel-build` → `public/`; `/health` rewrite to `server.js`; 203 tests.

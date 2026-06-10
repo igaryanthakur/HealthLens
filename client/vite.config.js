@@ -4,10 +4,13 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   build: {
-    // Rolldown (Vite 8) may emit CJS on Linux/Vercel; browser needs ESM (type="module").
+    // Vercel transpiles .js in static output to CommonJS when api/ functions exist.
+    // .mjs is served as-is so <script type="module"> works in the browser.
     rolldownOptions: {
       output: {
         format: 'es',
+        entryFileNames: 'assets/[name]-[hash].mjs',
+        chunkFileNames: 'assets/[name]-[hash].mjs',
       },
     },
   },
