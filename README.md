@@ -33,7 +33,7 @@ This is **not** a one-off report summarizer. It builds **longitudinal health int
 ### 1. Clone and install
 
 ```bash
-git clone https://github.com/igaryanthakur/HealthLens.git
+git clone <your-repo-url>
 cd HealthLens
 npm install
 ```
