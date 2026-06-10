@@ -7,6 +7,7 @@ const {
   adviceHandler,
   timelineHandler,
   summaryHandler,
+  overviewHandler,
   insightsHandler,
   doctorSummaryHandler,
 } = require("../routes/repository");
@@ -88,6 +89,18 @@ test("summary handler returns counts", async () => {
   assert.equal(res.body.summary.totalReports, 2);
   assert.equal(res.body.summary.medications, 1);
   assert.equal(res.body.summary.events, 2);
+});
+
+test("overview handler returns bundled rollups in one response", async () => {
+  const res = createMockRes();
+  await overviewHandler(req, res, { findReports: async () => stubReports });
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.summary.totalReports, 2);
+  assert.equal(res.body.medications[0].name, "Metformin");
+  assert.equal(res.body.diagnoses[0].condition, "Diabetes");
+  assert.equal(res.body.symptoms[0].description, "Fatigue");
+  assert.equal(res.body.advice.length, 2);
 });
 
 test("handlers return 500 when fetch fails", async () => {

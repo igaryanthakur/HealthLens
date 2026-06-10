@@ -28,7 +28,7 @@ const SOCIAL_IMPACT_IMG_SRC =
 
 export default function Landing() {
   const rootRef = useRef(null)
-  const uploadHref = getAuthToken() ? '/dashboard' : '/register'
+  const uploadHref = getAuthToken() ? '/dashboard?upload=1' : '/register'
 
   useEffect(() => {
     const root = rootRef.current

@@ -1,6 +1,14 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { meHandler, updateProfileHandler, validateProfileInput } = require("../routes/users");
+const {
+  meHandler,
+  updateProfileHandler,
+  updateAccountHandler,
+  changePasswordHandler,
+  validateProfileInput,
+  validateAccountInput,
+  validatePasswordInput,
+} = require("../routes/users");
 
 function createMockRes() {
   return {
@@ -119,5 +127,108 @@ test("validateProfileInput rejects invalid enum values", () => {
   assert.equal(
     validateProfileInput({ lifestyle: { smokingStatus: "Sometimes" } }),
     "Invalid smokingStatus value.",
+  );
+});
+
+test("update account handler updates name and email", async () => {
+  const res = createMockRes();
+  const user = {
+    ...mockUser,
+    save: async function save() {
+      return this;
+    },
+  };
+
+  await updateAccountHandler(
+    {
+      user: { id: stubUserId },
+      body: { name: "Priya Sharma", email: "priya@example.com" },
+    },
+    res,
+    {
+      findUserById: async () => user,
+      findUserByEmail: async () => null,
+    },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.user.name, "Priya Sharma");
+  assert.equal(res.body.user.email, "priya@example.com");
+  assert.equal(user.name, "Priya Sharma");
+  assert.equal(user.email, "priya@example.com");
+});
+
+test("update account handler rejects duplicate email", async () => {
+  const res = createMockRes();
+  const user = { ...mockUser, save: async () => user };
+
+  await updateAccountHandler(
+    {
+      user: { id: stubUserId },
+      body: { email: "taken@example.com" },
+    },
+    res,
+    {
+      findUserById: async () => user,
+      findUserByEmail: async () => ({ _id: "other-user-id" }),
+    },
+  );
+
+  assert.equal(res.statusCode, 400);
+  assert.match(res.body.message, /already in use/i);
+});
+
+test("change password handler updates password when current matches", async () => {
+  const res = createMockRes();
+  const user = {
+    ...mockUser,
+    password: "hashed-secret",
+    matchPassword: async (entered) => entered === "OldPass123",
+    save: async function save() {
+      return this;
+    },
+  };
+
+  await changePasswordHandler(
+    {
+      user: { id: stubUserId },
+      body: { currentPassword: "OldPass123", newPassword: "NewPass456" },
+    },
+    res,
+    { findUserById: async () => user },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(user.password, "NewPass456");
+});
+
+test("change password handler rejects incorrect current password", async () => {
+  const res = createMockRes();
+  const user = {
+    ...mockUser,
+    matchPassword: async () => false,
+    save: async () => user,
+  };
+
+  await changePasswordHandler(
+    {
+      user: { id: stubUserId },
+      body: { currentPassword: "wrong", newPassword: "NewPass456" },
+    },
+    res,
+    { findUserById: async () => user },
+  );
+
+  assert.equal(res.statusCode, 401);
+  assert.match(res.body.message, /incorrect/i);
+});
+
+test("validateAccountInput and validatePasswordInput guard bad input", () => {
+  assert.equal(validateAccountInput({ name: "A" }), "Name must be at least 2 characters.");
+  assert.equal(validateAccountInput({ email: "bad-email" }), "Invalid email address.");
+  assert.equal(validatePasswordInput({}), "Current password and new password are required.");
+  assert.equal(
+    validatePasswordInput({ currentPassword: "SamePass1!", newPassword: "SamePass1!" }),
+    "New password must be different from the current password.",
   );
 });

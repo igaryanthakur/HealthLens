@@ -11,13 +11,7 @@ import {
   Calendar,
   Layers,
 } from 'lucide-react'
-import {
-  fetchRepositorySummary,
-  fetchMedicationHistory,
-  fetchDiagnosisHistory,
-  fetchSymptomHistory,
-  fetchAdviceHistory,
-} from '../lib/api'
+import { fetchRepositoryOverview } from '../lib/api'
 
 function formatDate(value) {
   if (!value) return '—'
@@ -136,22 +130,15 @@ export default function Repository() {
       setLoading(true)
       setError(null)
       try {
-        const [summaryJson, medsJson, diagnosesJson, symptomsJson, adviceJson] =
-          await Promise.all([
-            fetchRepositorySummary(),
-            fetchMedicationHistory(),
-            fetchDiagnosisHistory(),
-            fetchSymptomHistory(),
-            fetchAdviceHistory(),
-          ])
+        const json = await fetchRepositoryOverview()
 
         if (!cancelled) {
           setData({
-            summary: summaryJson.summary ?? {},
-            medications: medsJson.medications ?? [],
-            diagnoses: diagnosesJson.diagnoses ?? [],
-            symptoms: symptomsJson.symptoms ?? [],
-            advice: adviceJson.advice ?? [],
+            summary: json.summary ?? {},
+            medications: json.medications ?? [],
+            diagnoses: json.diagnoses ?? [],
+            symptoms: json.symptoms ?? [],
+            advice: json.advice ?? [],
           })
         }
       } catch (err) {

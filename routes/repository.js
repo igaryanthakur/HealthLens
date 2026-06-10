@@ -22,7 +22,32 @@ const router = express.Router();
 // Shared loader: all rollups compute over the user's full report history,
 // chronologically ascending so first/last-seen math is natural.
 function defaultFindReports(req) {
-  return Report.find({ userId: req.user.id }).sort({ reportDate: 1 });
+  // Plain objects are enough for rollups and avoid Mongoose hydration overhead.
+  return Report.find({ userId: req.user.id }).sort({ reportDate: 1 }).lean();
+}
+
+function buildRepositoryOverview(reports) {
+  const list = Array.isArray(reports) ? reports : [];
+  const medications = aggregateMedications(list);
+  const diagnoses = aggregateDiagnoses(list);
+  const symptoms = aggregateSymptoms(list);
+  const advice = aggregateAdvice(list);
+  const timeline = buildTimeline(list);
+
+  return {
+    summary: {
+      totalReports: list.length,
+      medications: medications.length,
+      diagnoses: diagnoses.length,
+      symptoms: symptoms.length,
+      advice: advice.length,
+      events: timeline.length,
+    },
+    medications,
+    diagnoses,
+    symptoms,
+    advice,
+  };
 }
 
 // Wraps a rollup handler with shared fetch + error handling. `key` is the
@@ -76,16 +101,26 @@ const timelineHandler = makeHandler(
 
 const summaryHandler = makeHandler(
   "summary",
-  (reports) => ({
-    totalReports: Array.isArray(reports) ? reports.length : 0,
-    medications: aggregateMedications(reports).length,
-    diagnoses: aggregateDiagnoses(reports).length,
-    symptoms: aggregateSymptoms(reports).length,
-    advice: aggregateAdvice(reports).length,
-    events: buildTimeline(reports).length,
-  }),
+  (reports) => buildRepositoryOverview(reports).summary,
   "repository summary",
 );
+
+// Single-fetch bundle for the Repository UI (Stage 2.3 perf). One MongoDB read +
+// one pass of each rollup instead of five parallel /history-style fetches.
+async function overviewHandler(req, res, deps = {}) {
+  const findReports = deps.findReports ?? (() => defaultFindReports(req));
+
+  try {
+    const reports = await findReports();
+    return res.json({ success: true, ...buildRepositoryOverview(reports) });
+  } catch (error) {
+    logger.error("Repository overview fetch failed", { error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch repository overview.",
+    });
+  }
+}
 
 // Longitudinal insights need both the user profile and the full report history,
 // so this cannot use makeHandler (which only loads reports). Gemini only rewords
@@ -185,6 +220,7 @@ async function doctorSummaryHandler(req, res, deps = {}) {
   });
 }
 
+router.get("/overview", protect, overviewHandler);
 router.get("/medications", protect, medicationsHandler);
 router.get("/diagnoses", protect, diagnosesHandler);
 router.get("/symptoms", protect, symptomsHandler);
@@ -201,5 +237,7 @@ module.exports.symptomsHandler = symptomsHandler;
 module.exports.adviceHandler = adviceHandler;
 module.exports.timelineHandler = timelineHandler;
 module.exports.summaryHandler = summaryHandler;
+module.exports.overviewHandler = overviewHandler;
+module.exports.buildRepositoryOverview = buildRepositoryOverview;
 module.exports.insightsHandler = insightsHandler;
 module.exports.doctorSummaryHandler = doctorSummaryHandler;

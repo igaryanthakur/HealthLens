@@ -10,6 +10,7 @@ import {
   fetchRepositoryInsights,
   getCachedInsights,
   setCachedInsights,
+  clearRepositoryOverviewCache,
   uploadReport,
   interpretStructured,
   saveReviewedDocument,
@@ -172,6 +173,7 @@ export default function Dashboard() {
 
       const interpretJson = await interpretStructured(uploadJson.structured)
 
+      clearRepositoryOverviewCache()
       const reports = await loadHistory()
       loadInsights(reports, { force: true })
       setSearchParams({ reportId: interpretJson.reportId })
@@ -201,6 +203,7 @@ export default function Dashboard() {
 
     try {
       const json = await saveReviewedDocument(payload)
+      clearRepositoryOverviewCache()
       const reports = await loadHistory()
       loadInsights(reports, { force: true })
       setReviewData(null)

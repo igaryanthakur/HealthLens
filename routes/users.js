@@ -73,6 +73,45 @@ function validateProfileInput(body) {
   return null;
 }
 
+function validateAccountInput(body) {
+  if (body.name !== undefined) {
+    const name = String(body.name).trim();
+    if (name.length < 2) {
+      return "Name must be at least 2 characters.";
+    }
+  }
+
+  if (body.email !== undefined) {
+    const email = String(body.email).trim().toLowerCase();
+    const emailPattern = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailPattern.test(email)) {
+      return "Invalid email address.";
+    }
+  }
+
+  if (body.name === undefined && body.email === undefined) {
+    return "Provide at least one field to update (name or email).";
+  }
+
+  return null;
+}
+
+function validatePasswordInput(body) {
+  if (!body?.currentPassword || !body?.newPassword) {
+    return "Current password and new password are required.";
+  }
+
+  if (String(body.newPassword).length < 8) {
+    return "New password must be at least 8 characters.";
+  }
+
+  if (body.newPassword === body.currentPassword) {
+    return "New password must be different from the current password.";
+  }
+
+  return null;
+}
+
 async function meHandler(req, res, deps = {}) {
   const findUserById =
     deps.findUserById ?? ((id) => User.findById(id).select("-password"));
@@ -154,10 +193,103 @@ async function updateProfileHandler(req, res, deps = {}) {
   }
 }
 
+async function updateAccountHandler(req, res, deps = {}) {
+  const findUserById = deps.findUserById ?? ((id) => User.findById(id));
+  const findUserByEmail =
+    deps.findUserByEmail ?? ((email) => User.findOne({ email }));
+
+  try {
+    const validationError = validateAccountInput(req.body ?? {});
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
+    const user = await findUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    if (req.body.name !== undefined) {
+      user.name = String(req.body.name).trim();
+    }
+
+    if (req.body.email !== undefined) {
+      const email = String(req.body.email).trim().toLowerCase();
+      if (email !== user.email) {
+        const existing = await findUserByEmail(email);
+        if (existing && existing._id.toString() !== user._id.toString()) {
+          return res.status(400).json({
+            success: false,
+            message: "Email is already in use.",
+          });
+        }
+        user.email = email;
+      }
+    }
+
+    await user.save();
+
+    return res.json({
+      success: true,
+      user: formatUser(user),
+    });
+  } catch (error) {
+    logger.error("Account update failed", { error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update account.",
+    });
+  }
+}
+
+async function changePasswordHandler(req, res, deps = {}) {
+  const findUserById = deps.findUserById ?? ((id) => User.findById(id));
+
+  try {
+    const validationError = validatePasswordInput(req.body ?? {});
+    if (validationError) {
+      return res.status(400).json({ success: false, message: validationError });
+    }
+
+    const user = await findUserById(req.user.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: "User not found." });
+    }
+
+    const matches = await user.matchPassword(req.body.currentPassword);
+    if (!matches) {
+      return res.status(401).json({
+        success: false,
+        message: "Current password is incorrect.",
+      });
+    }
+
+    user.password = req.body.newPassword;
+    await user.save();
+
+    return res.json({
+      success: true,
+      message: "Password updated successfully.",
+    });
+  } catch (error) {
+    logger.error("Password change failed", { error: error.message });
+    return res.status(500).json({
+      success: false,
+      message: "Failed to change password.",
+    });
+  }
+}
+
 router.get("/me", protect, meHandler);
 router.put("/profile", protect, updateProfileHandler);
+router.put("/account", protect, updateAccountHandler);
+router.put("/password", protect, changePasswordHandler);
 
 module.exports = router;
 module.exports.meHandler = meHandler;
 module.exports.updateProfileHandler = updateProfileHandler;
+module.exports.updateAccountHandler = updateAccountHandler;
+module.exports.changePasswordHandler = changePasswordHandler;
 module.exports.validateProfileInput = validateProfileInput;
+module.exports.validateAccountInput = validateAccountInput;
+module.exports.validatePasswordInput = validatePasswordInput;

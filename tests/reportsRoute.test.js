@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { historyHandler, getByIdHandler } = require("../routes/reports");
+const { historyHandler, getByIdHandler, deleteByIdHandler } = require("../routes/reports");
 
 function createMockRes() {
   return {
@@ -112,6 +112,24 @@ test("getById handler returns 403 when userId does not match", async () => {
   assert.equal(res.body.message, "Forbidden.");
 });
 
+test("getById handler returns 400 for malformed report id", async () => {
+  const res = createMockRes();
+
+  await getByIdHandler(
+    { params: { id: "notavalidid123" }, user: { id: stubUserId } },
+    res,
+    {
+      findById: async () => {
+        throw new Error("findById should not be called");
+      },
+    },
+  );
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.success, false);
+  assert.equal(res.body.message, "Invalid report id.");
+});
+
 test("getById handler returns 404 when report not found", async () => {
   const res = createMockRes();
 
@@ -124,6 +142,69 @@ test("getById handler returns 404 when report not found", async () => {
   assert.equal(res.statusCode, 404);
   assert.equal(res.body.success, false);
   assert.match(res.body.message, /Report not found/);
+});
+
+test("deleteById handler deletes owned report", async () => {
+  const res = createMockRes();
+  let deletedId = null;
+
+  await deleteByIdHandler(
+    { params: { id: ownedReportId }, user: { id: stubUserId } },
+    res,
+    {
+      findById: async () => ownedReport,
+      deleteById: async (id) => {
+        deletedId = id;
+      },
+    },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.reportId, ownedReportId);
+  assert.equal(deletedId, ownedReportId);
+});
+
+test("deleteById handler returns 403 for non-owner", async () => {
+  const res = createMockRes();
+
+  await deleteByIdHandler(
+    { params: { id: ownedReportId }, user: { id: otherUserId } },
+    res,
+    { findById: async () => ownedReport },
+  );
+
+  assert.equal(res.statusCode, 403);
+  assert.equal(res.body.message, "Forbidden.");
+});
+
+test("deleteById handler returns 400 for malformed report id", async () => {
+  const res = createMockRes();
+
+  await deleteByIdHandler(
+    { params: { id: "notavalidid123" }, user: { id: stubUserId } },
+    res,
+    {
+      findById: async () => {
+        throw new Error("findById should not be called");
+      },
+    },
+  );
+
+  assert.equal(res.statusCode, 400);
+  assert.equal(res.body.message, "Invalid report id.");
+});
+
+test("deleteById handler returns 404 when report missing", async () => {
+  const res = createMockRes();
+
+  await deleteByIdHandler(
+    { params: { id: ownedReportId }, user: { id: stubUserId } },
+    res,
+    { findById: async () => null },
+  );
+
+  assert.equal(res.statusCode, 404);
 });
 
 test("getById handler returns 500 when fetch fails", async () => {

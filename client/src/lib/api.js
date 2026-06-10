@@ -1,6 +1,9 @@
 const AUTH_TOKEN_KEY = 'healthlens_auth_token';
 const INSIGHTS_CACHE_KEY = 'healthlens_insights_cache';
 
+// In-memory cache for the repository overview bundle (one DB read on the server).
+let repositoryOverviewCache = null;
+
 async function parseJsonResponse(res) {
   const json = await res.json().catch(() => ({}));
 
@@ -19,14 +22,20 @@ export function getAuthToken() {
   return localStorage.getItem(AUTH_TOKEN_KEY);
 }
 
+export function clearRepositoryOverviewCache() {
+  repositoryOverviewCache = null;
+}
+
 export function setAuthToken(token) {
   // A new session invalidates any cached insights (handles login #1 refresh).
   clearCachedInsights();
+  clearRepositoryOverviewCache();
   localStorage.setItem(AUTH_TOKEN_KEY, token);
 }
 
 export function clearAuthToken() {
   clearCachedInsights();
+  clearRepositoryOverviewCache();
   localStorage.removeItem(AUTH_TOKEN_KEY);
 }
 
@@ -204,6 +213,20 @@ export async function fetchRepositorySummary() {
   return parseJsonResponse(res);
 }
 
+export async function fetchRepositoryOverview({ force = false } = {}) {
+  if (!force && repositoryOverviewCache) {
+    return repositoryOverviewCache;
+  }
+
+  const res = await fetch('/api/repository/overview', {
+    headers: authHeaders(),
+  });
+
+  const json = await parseJsonResponse(res);
+  repositoryOverviewCache = json;
+  return json;
+}
+
 export async function fetchRepositoryInsights() {
   const res = await fetch('/api/repository/insights', {
     headers: authHeaders(),
@@ -252,4 +275,42 @@ export async function updateUserProfile(profile) {
   });
 
   return parseJsonResponse(res);
+}
+
+export async function updateUserAccount({ name, email }) {
+  const res = await fetch('/api/users/account', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ name, email }),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function changeUserPassword({ currentPassword, newPassword }) {
+  const res = await fetch('/api/users/password', {
+    method: 'PUT',
+    headers: {
+      'Content-Type': 'application/json',
+      ...authHeaders(),
+    },
+    body: JSON.stringify({ currentPassword, newPassword }),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export async function deleteReport(reportId) {
+  const res = await fetch(`/api/reports/${reportId}`, {
+    method: 'DELETE',
+    headers: authHeaders(),
+  });
+
+  const json = await parseJsonResponse(res);
+  clearRepositoryOverviewCache();
+  clearCachedInsights();
+  return json;
 }

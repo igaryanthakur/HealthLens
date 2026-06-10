@@ -12,8 +12,9 @@ import {
   Loader2,
   Search,
   Stethoscope,
+  Trash2,
 } from 'lucide-react'
-import { fetchReportHistory } from '../lib/api'
+import { deleteReport, fetchReportHistory } from '../lib/api'
 
 function formatReportDateLong(value) {
   const date = new Date(value)
@@ -48,6 +49,17 @@ function countAbnormalMeasurements(report) {
   ).length
 }
 
+function getReportTitle(report) {
+  if (report.documentType === 'prescription') return 'Prescription'
+  if (report.documentType && report.documentType !== 'lab_report') {
+    return report.documentType
+      .split('_')
+      .map((part) => part.charAt(0).toUpperCase() + part.slice(1))
+      .join(' ')
+  }
+  return report.reportType || 'Report'
+}
+
 export default function Vault() {
   const navigate = useNavigate()
   const [reports, setReports] = useState([])
@@ -55,6 +67,7 @@ export default function Vault() {
   const [error, setError] = useState(null)
   const [searchQuery, setSearchQuery] = useState('')
   const [sortDesc, setSortDesc] = useState(true)
+  const [deletingId, setDeletingId] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -113,6 +126,29 @@ export default function Vault() {
 
   function openReport(reportId) {
     navigate(`/dashboard?reportId=${reportId}`)
+  }
+
+  async function handleDeleteReport(e, report) {
+    e.stopPropagation()
+
+    const title = getReportTitle(report)
+    const date = formatReportDateLong(report.reportDate)
+    const confirmed = window.confirm(
+      `Delete "${title}" from ${date}? This will remove it from your vault, repository, and timeline. This cannot be undone.`,
+    )
+    if (!confirmed) return
+
+    setDeletingId(report._id)
+    setError(null)
+
+    try {
+      await deleteReport(report._id)
+      setReports((prev) => prev.filter((r) => r._id !== report._id))
+    } catch (err) {
+      setError(err.message || 'Failed to delete report.')
+    } finally {
+      setDeletingId(null)
+    }
   }
 
   function handleCardKeyDown(event, reportId) {
@@ -247,7 +283,8 @@ export default function Vault() {
               const abnormalCount = countAbnormalMeasurements(report)
               const biomarkerCount = (report.measurements ?? []).length
               const { day, month } = getDateParts(report.reportDate)
-              const title = report.reportType || 'Report'
+              const title = getReportTitle(report)
+              const isDeleting = deletingId === report._id
 
               if (needsAttention) {
                 return (
@@ -273,10 +310,23 @@ export default function Vault() {
                         {abnormalCount !== 1 ? 's' : ''}
                       </p>
                     </div>
-                    <div className="flex items-center gap-6">
+                    <div className="flex items-center gap-3">
                       <span className="hidden md:inline-flex px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold uppercase tracking-wider">
                         Attention Needed
                       </span>
+                      <button
+                        type="button"
+                        onClick={(e) => handleDeleteReport(e, report)}
+                        disabled={isDeleting}
+                        aria-label={`Delete ${title}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:text-error hover:bg-error-container/30 transition-colors disabled:opacity-50"
+                      >
+                        {isDeleting ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Trash2 size={16} />
+                        )}
+                      </button>
                       <ChevronRight className="text-outline group-hover:translate-x-1 transition-transform" />
                     </div>
                   </div>
@@ -306,10 +356,23 @@ export default function Vault() {
                       {biomarkerCount !== 1 ? 's' : ''}
                     </p>
                   </div>
-                  <div className="flex items-center gap-6">
+                  <div className="flex items-center gap-3">
                     <span className="hidden md:inline-flex px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-bold uppercase tracking-wider">
                       Stable
                     </span>
+                    <button
+                      type="button"
+                      onClick={(e) => handleDeleteReport(e, report)}
+                      disabled={isDeleting}
+                      aria-label={`Delete ${title}`}
+                      className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:text-error hover:bg-error-container/30 transition-colors disabled:opacity-50"
+                    >
+                      {isDeleting ? (
+                        <Loader2 size={16} className="animate-spin" />
+                      ) : (
+                        <Trash2 size={16} />
+                      )}
+                    </button>
                     <ChevronRight className="text-outline group-hover:translate-x-1 transition-transform" />
                   </div>
                 </div>

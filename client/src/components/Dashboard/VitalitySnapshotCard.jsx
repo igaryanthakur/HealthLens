@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { Activity, AlertTriangle, FileText, Microscope, Pill, Stethoscope } from 'lucide-react'
 import VitalityRing from './VitalityRing'
-import { fetchDiagnosisHistory, fetchMedicationHistory } from '../../lib/api'
+import { fetchRepositoryOverview } from '../../lib/api'
 
 function capitalize(text) {
   if (!text) return ''
@@ -54,13 +54,10 @@ export default function VitalitySnapshotCard({ score = 0, alerts = [], history =
     let cancelled = false
     ;(async () => {
       try {
-        const [dx, meds] = await Promise.all([
-          fetchDiagnosisHistory(),
-          fetchMedicationHistory(),
-        ])
+        const overview = await fetchRepositoryOverview()
         if (cancelled) return
-        setConditions(dx.diagnoses ?? [])
-        setMedications(meds.medications ?? [])
+        setConditions(overview.diagnoses ?? [])
+        setMedications(overview.medications ?? [])
       } catch {
         /* snapshot degrades gracefully on fetch failure */
       }
