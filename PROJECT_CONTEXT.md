@@ -245,7 +245,7 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
-- **2026-06-10:** Vercel 250MB fix — removed `api/.deps/` full-package staging; `includeFiles` array targets only missing assets (~8MB OCR/PDF + native binaries) instead of duplicating entire `pdf-parse`/`tesseract.js-core`.
+- **2026-06-10:** Vercel 250MB fix — removed `api/.deps/` full-package staging; single-string `includeFiles` glob for untraced PDF/OCR/native assets (~8MB, not full packages).
 - **2026-06-10:** Vercel PDF upload fix — `utils/pdfParseLoader.js` + `includeFiles` for `pdf.worker.mjs`.
 - **2026-06-10:** Vercel entrypoint fix — removed `outputDirectory: public` from `vercel.json` (with `api/` present, that setting makes Vercel scan `public/` for Node entrypoints); `framework: null` + `rewrites` for SPA; dashboard Output Directory override must be cleared.
 - **2026-06-10:** Vercel static routing fix — `scripts/copyDist.js` replaces inline `cpSync` with explicit error if `index.html` missing from `public/`.
