@@ -20,8 +20,15 @@
   "functions": {
     "api/index.js": {
       "maxDuration": 60,
-      "memory": 1024,
-      "includeFiles": "api/.deps/**"
+      "includeFiles": [
+        "node_modules/pdf-parse/dist/pdf-parse/cjs/pdf.worker.mjs",
+        "node_modules/tesseract.js/src/worker-script/**",
+        "node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm",
+        "node_modules/tesseract.js-core/tesseract-core-simd-lstm.wasm.js",
+        "node_modules/tesseract.js-core/tesseract-core-simd-lstm.js",
+        "node_modules/@napi-rs/canvas-linux-x64-gnu/**",
+        "node_modules/@img/sharp-linux-x64/**"
+      ]
     }
   }
 }

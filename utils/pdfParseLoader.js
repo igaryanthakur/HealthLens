@@ -4,11 +4,8 @@ const { ensureCanvasPolyfill } = require("./canvasPolyfill");
 
 let PDFParseClass = null;
 
-function hasCompletePdfParsePackage(packageRoot) {
-  if (!packageRoot || packageRoot === "pdf-parse") {
-    return false;
-  }
-
+function resolvePdfParseEntry() {
+  const packageRoot = path.join(__dirname, "..", "node_modules", "pdf-parse");
   const workerPath = path.join(
     packageRoot,
     "dist",
@@ -16,21 +13,9 @@ function hasCompletePdfParsePackage(packageRoot) {
     "cjs",
     "pdf.worker.mjs"
   );
-  const indexPath = path.join(packageRoot, "dist", "pdf-parse", "cjs", "index.cjs");
 
-  return fs.existsSync(workerPath) && fs.existsSync(indexPath);
-}
-
-function resolvePdfParseEntry() {
-  const candidates = [
-    path.join(__dirname, "..", "api", ".deps", "node_modules", "pdf-parse"),
-    path.join(__dirname, "..", "node_modules", "pdf-parse"),
-  ];
-
-  for (const candidate of candidates) {
-    if (hasCompletePdfParsePackage(candidate)) {
-      return candidate;
-    }
+  if (fs.existsSync(workerPath)) {
+    return packageRoot;
   }
 
   return "pdf-parse";
@@ -42,8 +27,7 @@ function getPDFParse() {
   }
 
   ensureCanvasPolyfill();
-  const entry = resolvePdfParseEntry();
-  PDFParseClass = require(entry).PDFParse;
+  PDFParseClass = require(resolvePdfParseEntry()).PDFParse;
   return PDFParseClass;
 }
 

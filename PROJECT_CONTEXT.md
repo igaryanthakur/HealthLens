@@ -1,6 +1,6 @@
 # HealthLens AI — Project Context
 
-**Last Updated:** Wednesday, June 10, 2026 (Vercel upload/OCR deps fix)  
+**Last Updated:** Wednesday, June 10, 2026 (Vercel 250MB bundle fix)  
 **Status:** Eval-ready · **203/203** tests · freeze (bug fixes + docs only)
 
 > Contributor and agent reference. For onboarding, start with [README.md](README.md).
@@ -43,7 +43,7 @@ flowchart LR
 
 **Commands:** `npm install` · `npm run dev` (API `:5000` + frontend `:5173`) · `npm test` · `npm run seed:demo` (see [docs/DEMO.md](docs/DEMO.md))
 
-**Vercel (full-stack):** `vercel-build` → `copyDist.js` + `stageServerlessDeps.js` (mirrors `@napi-rs/canvas`, `sharp`, `tesseract.js` native/WASM into `api/.deps/`; `includeFiles` + 1024MB memory on `api/index.js`). Do **not** set `outputDirectory: public`. API: [`api/index.js`](api/index.js). Clear dashboard Output Directory override. Env: `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY`, optional `CLOUDINARY_*`.
+**Vercel (full-stack):** `vercel-build` → `copyDist.js` + `validateServerlessAssets.js`. Do **not** stage full packages to `api/.deps/` (exceeds 250MB). Use targeted `includeFiles` in `vercel.json` for untraced assets (`pdf.worker.mjs`, tesseract WASM/worker, Linux `@napi-rs/canvas` + `@img/sharp` binaries). No `outputDirectory: public`. API: [`api/index.js`](api/index.js).
 
 ---
 
@@ -245,8 +245,8 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
-- **2026-06-10:** Vercel PDF upload fix — stage full `pdf-parse` (includes `pdf.worker.mjs`); `utils/pdfParseLoader.js` resolves staged package on Vercel instead of truncated `/var/task/node_modules/pdf-parse`.
-- **2026-06-10:** Vercel upload fix — `stageServerlessDeps.js` stages `@napi-rs/canvas`, `sharp`, `tesseract.js` into `api/.deps/`; `api/serverlessPaths.js` prepends `NODE_PATH`; function `memory: 1024`, `includeFiles: api/.deps/**`.
+- **2026-06-10:** Vercel 250MB fix — removed `api/.deps/` full-package staging; `includeFiles` array targets only missing assets (~8MB OCR/PDF + native binaries) instead of duplicating entire `pdf-parse`/`tesseract.js-core`.
+- **2026-06-10:** Vercel PDF upload fix — `utils/pdfParseLoader.js` + `includeFiles` for `pdf.worker.mjs`.
 - **2026-06-10:** Vercel entrypoint fix — removed `outputDirectory: public` from `vercel.json` (with `api/` present, that setting makes Vercel scan `public/` for Node entrypoints); `framework: null` + `rewrites` for SPA; dashboard Output Directory override must be cleared.
 - **2026-06-10:** Vercel static routing fix — `scripts/copyDist.js` replaces inline `cpSync` with explicit error if `index.html` missing from `public/`.
 - **2026-06-10:** Vercel static JS fix — Vite emits `.mjs` chunks so Vercel does not transpile browser bundles to CommonJS (`exports is not defined`); `format: 'es'` + `npm ci --include=dev` in `vercel-build`.

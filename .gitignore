@@ -2,7 +2,6 @@ node_modules/
 .env
 client/dist
 public/
-api/.deps/
 !uploads/.gitkeep
 uploads/*
 !uploads/.gitkeep
