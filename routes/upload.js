@@ -81,7 +81,10 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
       structured,
     });
   } catch (error) {
-    logger.error("Upload extraction failed", { error: error.message });
+    logger.error("Upload extraction failed", {
+      error: error.message,
+      stack: error.stack,
+    });
 
     const message = error.message || "";
     const isAiLaneFailure =
@@ -93,6 +96,17 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
         success: false,
         message:
           "AI extraction is temporarily unavailable for this document type. Please try again shortly or upload a lab report.",
+      });
+    }
+
+    const isRuntimeDependencyFailure =
+      /Cannot find module|ENOENT|sharp|tesseract|canvas|wasm|worker/i.test(message);
+
+    if (isRuntimeDependencyFailure) {
+      return res.status(503).json({
+        success: false,
+        message:
+          "Document processing is temporarily unavailable on this server. Please try again or use a smaller digital PDF.",
       });
     }
 

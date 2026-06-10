@@ -1,5 +1,6 @@
 const sharp = require("sharp");
 const Tesseract = require("tesseract.js");
+const { getTesseractWorkerOptions } = require("../utils/tesseractConfig");
 
 const OCR_LANGUAGE = process.env.OCR_LANGUAGE || "eng";
 
@@ -14,7 +15,11 @@ async function preprocessImage(input) {
 }
 
 async function runOcr(imageBuffer) {
-  const result = await Tesseract.recognize(imageBuffer, OCR_LANGUAGE);
+  const result = await Tesseract.recognize(
+    imageBuffer,
+    OCR_LANGUAGE,
+    getTesseractWorkerOptions()
+  );
   return {
     text: result.data?.text || "",
     words: (result.data?.words || []).map((word) => ({
