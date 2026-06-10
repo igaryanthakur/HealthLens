@@ -1,276 +1,725 @@
-3-Day Execution Plan
-Priority System
-Use this to avoid wasting time.
+# HealthLens AI — Final 3-Day Success Plan
 
-P0: Must ship These directly affect demo success or core vision.
+## Permanent Operating Principles
 
-Authenticated upload-to-dashboard flow
-MongoDB persistence and user-scoped history
-AI interpretation with token protection
-Dashboard with snapshot, trends, alerts, and history
-AI assistant grounded in user records
-Doctor summary/export
-Reliable demo data and graceful failures
-P1: Should ship High evaluator value, but not worth breaking P0.
+These two principles must be read before every stage, every implementation decision, and every demo preparation step.
 
-Longitudinal AI insights
-Medication/diagnosis/advice repository views
-Better review UI for extracted prescriptions/entities
-Better visual polish and animations
-Suggested assistant prompts
-P2: Nice only if time remains
+1. Always execute from the real codebase, the project vision, and the current development requirement. Do not follow stale plans blindly. Before each implementation stage, check `PROJECT_CONTEXT.md`, relevant source files, and the exact user/evaluator-facing outcome required.
 
-FullCalendar if the current mini calendar is insufficient
-Advanced PDF layouts
-Multi-page prescription support
-Deep OCR edge-case fixes
-Complex analytics beyond clear trends/deltas
-Day 4: Product Reliability + Dashboard Wow
-Goal
-Make the product demoable end-to-end and protect AI usage before adding more AI-heavy features.
+2. Act as both Lead Product Manager and Senior Full-Stack Engineer. Be honest, selective, and outcome-driven. Do not include ideas just because they sound impressive. Include only what improves HealthLens AI’s evaluation strength, demo reliability, product clarity, or technical credibility within the remaining timeline.
 
-Stage 4.1: Baseline Verification
-Before changing anything in Agent mode, inspect:
+---
 
-PROJECT_CONTEXT.md
-server.js
-routes/upload.js
-routes/interpret.js
-routes/chat.js
-services/aiService.js
-client/src/pages/Dashboard.jsx
-client/src/components/Dashboard/Dashboard.jsx
-client/src/lib/api.js
+# Executive Evaluation
+
+HealthLens AI’s original vision was not “upload report and summarize it.” The real vision is a Personal Health Intelligence System:
+
+- structured medical extraction
+- longitudinal health memory
+- trend analytics
+- doctor-friendly summaries
+- personal AI assistant
+- health timeline
+- explainable insights
+- safe, non-diagnostic medical language
+
+Based on the current project context, the foundation is already strong. The project has authentication, MongoDB persistence, user-scoped reports, upload/extraction, AI interpretation, profile context, dashboard, vault, chat, prescription/entity lanes, repository aggregation, timeline events, demo seed data, rate limiting, AI fallback behavior, and a large backend test suite.
+
+That means the old plan is partially obsolete. The remaining 3 days should not be spent rebuilding basics. The goal now is to turn the project from “technically functional” into “evaluation-winning.”
+
+The highest-scoring remaining work is:
+
+1. Longitudinal health intelligence.
+2. Doctor Summary Export.
+3. Repository views that prove this is a health memory, not just a report viewer.
+4. Demo reliability and polish.
+5. A scripted evaluation story that makes the vision obvious in 3–5 minutes.
+
+---
+
+# Feasibility Verdict
+
+## Feasible in 3 Days
+
+These should be completed.
+
+- Longitudinal AI insights from structured data.
+- Dashboard section: “What changed since last report?”
+- Doctor Summary page/export.
+- Medication, diagnosis, symptom, and advice repository UI.
+- Suggested assistant prompts.
+- Demo patient journey refinement.
+- QA pass, build pass, backend tests.
+- Evaluation script and fallback plan.
+
+## Not Feasible / Not Worth It Now
+
+Do not spend time on these unless everything else is frozen.
+
+- Hospital discovery.
+- Wearable integration.
+- Voice assistant.
+- Multilingual support.
+- Doctor portal.
+- Complex OCR edge-case perfection.
+- Multi-page prescription parsing.
+- Full production deployment hardening.
+- Advanced clinical prediction or diagnosis.
+- Complex new calendar system if the current mini calendar communicates timeline well.
+
+Reason: these are impressive on paper but risky. They can easily break the product, consume time, or distract from the core evaluation story.
+
+---
+
+# Final Product Positioning
+
+HealthLens AI should be presented as:
+
+> An AI-powered Personal Health Intelligence Platform that transforms scattered medical documents into a structured health profile, tracks trends over time, helps patients understand their records, and gives doctors a fast summary of the patient’s health journey.
+
+Do not present it as:
+
+- a diagnosis engine
+- a doctor replacement
+- a generic chatbot
+- a PDF summarizer
+- a hospital management system
+
+---
+
+# Priority System
+
+## P0 — Must Ship
+
+These directly affect evaluation marks.
+
+- End-to-end authenticated demo flow.
+- Demo patient data with visible health journey.
+- Dashboard with vitality, abnormal markers, trends, timeline, and AI insight.
+- Longitudinal insight engine.
+- Doctor Summary Export.
+- AI assistant grounded in user records.
+- Graceful Gemini fallback.
+- Tests/build passing.
+- Clear medical safety disclaimer.
+
+## P1 — Should Ship
+
+High-value polish if P0 is stable.
+
+- Repository pages/sections for medicines, diagnoses, symptoms, advice.
+- Suggested chat prompts.
+- Better empty states.
+- More polished PDF/print layout.
+- Demo script improvements.
+- “Questions to ask your doctor” section.
+
+## P2 — Nice Only
+
+Do only if everything above is done.
+
+- Advanced animation.
+- More sample patients.
+- More OCR test fixtures.
+- Better mobile polish.
+- Additional report categories.
+
+---
+
+# Target Evaluation Story
+
+The evaluator should understand this in under 60 seconds:
+
+1. Patients have scattered reports and prescriptions.
+2. HealthLens extracts structured health data.
+3. It builds a longitudinal health memory.
+4. It shows trends, alerts, medications, and timeline.
+5. It answers questions using personal records.
+6. It exports a doctor-friendly summary.
+7. It is medically safe: insights, not diagnosis.
+
+---
+
+# System Flow
+
+```mermaid
+flowchart TD
+  A[User Registers / Logs In] --> B[Uploads Medical Document]
+  B --> C[Document Type Routing]
+  C --> D1[Lab Report Deterministic Extraction]
+  C --> D2[Prescription Vision Extraction]
+  C --> D3[Typed/Scan/Discharge Entity Extraction]
+  D1 --> E[User Review / Structured Data]
+  D2 --> E
+  D3 --> E
+  E --> F[MongoDB Health Repository]
+  F --> G[Dashboard]
+  F --> H[Vault]
+  F --> I[Timeline]
+  F --> J[AI Assistant]
+  F --> K[Doctor Summary Export]
+  G --> L[Longitudinal Insights]
+
+  I’ve read the vision PDF, `PROJECT_CONTEXT.md`, and old `Context.txt`.
+
+Important: you are currently in Ask mode, so I cannot directly modify `Context.txt`. Below is the revised content I recommend replacing `Context.txt` with. It is stricter than the old plan because many old items are already shipped, and the remaining work must now focus on evaluation impact.
+
+```markdown
+# HealthLens AI — Final 3-Day Success Plan
+
+## Permanent Operating Principles
+
+These two principles must be read before every stage, every implementation decision, and every demo preparation step.
+
+1. Always execute from the real codebase, the project vision, and the current development requirement. Do not follow stale plans blindly. Before each implementation stage, check `PROJECT_CONTEXT.md`, relevant source files, and the exact user/evaluator-facing outcome required.
+
+2. Act as both Lead Product Manager and Senior Full-Stack Engineer. Be honest, selective, and outcome-driven. Do not include ideas just because they sound impressive. Include only what improves HealthLens AI’s evaluation strength, demo reliability, product clarity, or technical credibility within the remaining timeline.
+
+---
+
+# Executive Evaluation
+
+HealthLens AI’s original vision was not “upload report and summarize it.” The real vision is a Personal Health Intelligence System:
+
+- structured medical extraction
+- longitudinal health memory
+- trend analytics
+- doctor-friendly summaries
+- personal AI assistant
+- health timeline
+- explainable insights
+- safe, non-diagnostic medical language
+
+Based on the current project context, the foundation is already strong. The project has authentication, MongoDB persistence, user-scoped reports, upload/extraction, AI interpretation, profile context, dashboard, vault, chat, prescription/entity lanes, repository aggregation, timeline events, demo seed data, rate limiting, AI fallback behavior, and a large backend test suite.
+
+That means the old plan is partially obsolete. The remaining 3 days should not be spent rebuilding basics. The goal now is to turn the project from “technically functional” into “evaluation-winning.”
+
+The highest-scoring remaining work is:
+
+1. Longitudinal health intelligence.
+2. Doctor Summary Export.
+3. Repository views that prove this is a health memory, not just a report viewer.
+4. Demo reliability and polish.
+5. A scripted evaluation story that makes the vision obvious in 3–5 minutes.
+
+---
+
+# Feasibility Verdict
+
+## Feasible in 3 Days
+
+These should be completed.
+
+- Longitudinal AI insights from structured data.
+- Dashboard section: “What changed since last report?”
+- Doctor Summary page/export.
+- Medication, diagnosis, symptom, and advice repository UI.
+- Suggested assistant prompts.
+- Demo patient journey refinement.
+- QA pass, build pass, backend tests.
+- Evaluation script and fallback plan.
+
+## Not Feasible / Not Worth It Now
+
+Do not spend time on these unless everything else is frozen.
+
+- Hospital discovery.
+- Wearable integration.
+- Voice assistant.
+- Multilingual support.
+- Doctor portal.
+- Complex OCR edge-case perfection.
+- Multi-page prescription parsing.
+- Full production deployment hardening.
+- Advanced clinical prediction or diagnosis.
+- Complex new calendar system if the current mini calendar communicates timeline well.
+
+Reason: these are impressive on paper but risky. They can easily break the product, consume time, or distract from the core evaluation story.
+
+---
+
+# Final Product Positioning
+
+HealthLens AI should be presented as:
+
+> An AI-powered Personal Health Intelligence Platform that transforms scattered medical documents into a structured health profile, tracks trends over time, helps patients understand their records, and gives doctors a fast summary of the patient’s health journey.
+
+Do not present it as:
+
+- a diagnosis engine
+- a doctor replacement
+- a generic chatbot
+- a PDF summarizer
+- a hospital management system
+
+---
+
+# Priority System
+
+## P0 — Must Ship
+
+These directly affect evaluation marks.
+
+- End-to-end authenticated demo flow.
+- Demo patient data with visible health journey.
+- Dashboard with vitality, abnormal markers, trends, timeline, and AI insight.
+- Longitudinal insight engine.
+- Doctor Summary Export.
+- AI assistant grounded in user records.
+- Graceful Gemini fallback.
+- Tests/build passing.
+- Clear medical safety disclaimer.
+
+## P1 — Should Ship
+
+High-value polish if P0 is stable.
+
+- Repository pages/sections for medicines, diagnoses, symptoms, advice.
+- Suggested chat prompts.
+- Better empty states.
+- More polished PDF/print layout.
+- Demo script improvements.
+- “Questions to ask your doctor” section.
+
+## P2 — Nice Only
+
+Do only if everything above is done.
+
+- Advanced animation.
+- More sample patients.
+- More OCR test fixtures.
+- Better mobile polish.
+- Additional report categories.
+
+---
+
+# Target Evaluation Story
+
+The evaluator should understand this in under 60 seconds:
+
+1. Patients have scattered reports and prescriptions.
+2. HealthLens extracts structured health data.
+3. It builds a longitudinal health memory.
+4. It shows trends, alerts, medications, and timeline.
+5. It answers questions using personal records.
+6. It exports a doctor-friendly summary.
+7. It is medically safe: insights, not diagnosis.
+
+---
+
+# System Flow
+
+```mermaid
+flowchart TD
+  A[User Registers / Logs In] --> B[Uploads Medical Document]
+  B --> C[Document Type Routing]
+  C --> D1[Lab Report Deterministic Extraction]
+  C --> D2[Prescription Vision Extraction]
+  C --> D3[Typed/Scan/Discharge Entity Extraction]
+  D1 --> E[User Review / Structured Data]
+  D2 --> E
+  D3 --> E
+  E --> F[MongoDB Health Repository]
+  F --> G[Dashboard]
+  F --> H[Vault]
+  F --> I[Timeline]
+  F --> J[AI Assistant]
+  F --> K[Doctor Summary Export]
+  G --> L[Longitudinal Insights]
+```
+
+---
+
+# Final 3-Day Plan
+
+## Day 1 — Intelligence Layer
+
+Goal: move the product from “dashboard” to “health intelligence.”
+
+### Stage 1.1 — Verify Reality First
+
+Before coding, inspect:
+
+- `PROJECT_CONTEXT.md`
+- `server.js`
+- `routes/repository.js`
+- `routes/chat.js`
+- `routes/reports.js`
+- `services/aiService.js`
+- `utils/chatContextBuilder.js`
+- `utils/repositoryAggregator.js`
+- `utils/timelineBuilder.js`
+- `client/src/pages/Dashboard.jsx`
+- `client/src/components/Dashboard/Dashboard.jsx`
+- `client/src/lib/api.js`
+
 Acceptance criteria:
 
-We know which features are actually implemented.
-We know current test count.
-We know whether the current frontend build passes.
-No assumptions from old plans override the real code.
-Stage 4.2: AI Token Protection
-This is important and should be early.
+- Know current test count.
+- Know whether frontend build passes.
+- Know current endpoint behavior.
+- Do not duplicate existing functionality.
 
-Build/verify:
+### Stage 1.2 — Longitudinal Insight Backend
 
-Rate limit AI-heavy endpoints:
-POST /api/interpret
-POST /api/chat
-prescription/entity extraction routes if exposed through upload
-Use stricter limits for chat than upload/interpret.
-Add max input length for chat messages.
-Add max report history included in chat context, for example latest 10-20 reports or summarized context.
-Add timeout and graceful fallback around Gemini calls.
-Add user-facing fallback:
-“AI is temporarily unavailable. Your structured report was still saved.”
-Prevent repeated AI calls for the same uploaded report where possible.
-Recommended implementation shape later:
+Build an endpoint:
 
-express-rate-limit
-route-specific limiters
-bounded prompt builders
-deterministic fallback summary for saved documents
-optional hash-based AI result reuse later
-Acceptance criteria:
+`GET /api/repository/insights`
 
-A single user cannot spam Gemini through chat.
-Demo does not fail hard if Gemini is slow/unavailable.
-Structured extraction and persistence still work even if AI interpretation fails.
-Stage 4.3: Dashboard “Wow” Layer
-Evaluators judge fast. The dashboard must instantly communicate intelligence.
+or:
 
-Must show:
+`POST /api/insights/longitudinal`
 
-Vitality score / health status
-Latest abnormal biomarkers
-Trend chart with Recharts
-Active medications
-Current/recent diagnoses
-Doctor advice / tests advised
-Recent timeline events
-AI summary or insight panel
-Do not overbuild hidden backend here. The screen must look alive.
+Preferred: `GET /api/repository/insights` because insights belong to the health repository.
 
-Acceptance criteria:
+Input data should come from structured records only:
 
-With demo data, dashboard looks valuable within 5 seconds.
-Empty states are polished.
-One-report users see useful output.
-Multi-report users see trends and deltas.
-Stage 4.4: Demo Dataset
-This is critical.
+- user profile
+- latest report
+- previous reports
+- abnormal measurements
+- trend series
+- active/recent medications
+- diagnoses
+- symptoms
+- doctor advice
+- tests advised
+- timeline events
 
-Create a believable patient journey:
+Do not send raw OCR text to this endpoint.
 
-Report 1: baseline CBC/lipid/glucose
-Report 2: abnormal sugar/lipid
-Prescription: medication/advice
-Report 3: improved or worsened marker
-Optional typed note/discharge summary
-Acceptance criteria:
+Strict AI schema:
 
-Trends are visible.
-Assistant can answer meaningful questions.
-Doctor summary has enough content.
-Repository/vault does not look empty.
-Day 5: Personal Health Intelligence Layer
-Goal
-Move from “dashboard” to “intelligence platform.”
-
-Stage 5.1: Longitudinal AI Insights
-This is the highest-value missing flagship feature.
-
-Build an endpoint like:
-
-GET /api/repository/insights or
-POST /api/insights/longitudinal
-Input should be structured, not raw OCR:
-
-user profile
-latest report
-previous reports
-trend series
-active meds
-diagnoses
-abnormal markers
-tests advised
-doctor advice
-Strict AI output schema:
-
+```json
 {
   "summary": "",
-  "trendInsights": [],
+  "whatChanged": [],
+  "improvingSignals": [],
+  "needsAttention": [],
   "riskFlags": [],
   "doctorQuestions": [],
   "followUpSuggestions": [],
   "disclaimer": ""
 }
-Important language rules:
+```
 
-Say “may indicate,” “worth discussing,” “trend observed.”
-Do not say “you have,” “start medication,” or “diagnosed with.”
-Always include a doctor-facing disclaimer.
+Language rules:
+
+- Say “may indicate,” “trend observed,” “worth discussing.”
+- Never say “you have disease X.”
+- Never prescribe medication.
+- Never tell the user to stop or start medicine.
+- Always recommend doctor consultation for clinical decisions.
+
+Fallback behavior:
+
+If Gemini fails, return deterministic insights from existing structured data:
+
+- abnormal markers
+- latest value compared to previous value
+- missing follow-up tests
+- active medication count
+- recent doctor advice
+
 Acceptance criteria:
 
-AI can say what changed over time.
-It cites structured facts like dates, values, and markers.
-It does not invent diagnoses.
-It fails gracefully if Gemini quota is hit.
-Stage 5.2: AI Insights UI
-Create a premium dashboard section:
+- Endpoint works with demo user.
+- Endpoint does not hallucinate.
+- Endpoint works without Gemini.
+- Response is useful even with only 2 reports.
+- Tests cover success and fallback.
 
-“What changed since your last report?”
-“Needs attention”
-“Improving”
-“Questions to ask your doctor”
-“Suggested follow-up”
+### Stage 1.3 — Longitudinal Insight UI
+
+Add a premium dashboard section:
+
+Title options:
+
+- “What Changed Since Your Last Report”
+- “Health Intelligence Brief”
+- “Longitudinal Health Insights”
+
+Must show:
+
+- one plain-language summary
+- improving markers
+- needs-attention markers
+- questions to ask doctor
+- suggested follow-up
+- safety disclaimer
+
+The UI should feel more important than a normal AI summary. This is the flagship feature.
+
 Acceptance criteria:
 
-It is visually prominent.
-It is more impressive than a generic summary.
-It makes the product feel personalized.
-Stage 5.3: Doctor Summary Export
-This is evaluator gold because it maps directly to the problem statement.
+- Evaluator instantly sees that HealthLens analyzes history, not just one report.
+- Works with demo data.
+- Has loading state.
+- Has error/fallback state.
+- Does not block the dashboard if insight API fails.
 
-Minimum export content:
+---
 
-Patient profile
-Active/recent conditions
-Current/recent medications
-Latest vitals
-Abnormal markers
-Timeline highlights
-AI summary
-Questions for doctor
-Disclaimer
-Preferred if time permits:
+## Day 2 — Doctor Summary + Repository Proof
 
-Server-generated PDF route.
-If time is tight, polished browser print/export is acceptable.
+Goal: prove the product helps doctors and creates a real health memory.
+
+### Stage 2.1 — Doctor Summary Data Builder
+
+Create a data builder that produces one consolidated summary:
+
+Required sections:
+
+- patient profile
+- chronic conditions
+- latest vitals/biomarkers
+- abnormal markers
+- current/recent medications
+- diagnosis history
+- symptom history
+- doctor advice
+- tests advised
+- timeline highlights
+- longitudinal AI insight
+- questions for doctor
+- safety disclaimer
+
+Recommended backend shape:
+
+`GET /api/repository/doctor-summary`
+
+Response:
+
+```json
+{
+  "patient": {},
+  "snapshot": {},
+  "abnormalMarkers": [],
+  "medications": [],
+  "diagnoses": [],
+  "symptoms": [],
+  "advice": [],
+  "timelineHighlights": [],
+  "insights": {},
+  "doctorQuestions": [],
+  "generatedAt": ""
+}
+```
+
 Acceptance criteria:
 
-One click produces a doctor-readable summary.
-It is not just a screenshot of the dashboard.
-It solves “new doctors need patient history fast.”
-Day 6: Evaluation Polish, QA, And Freeze
-Goal
-Stop building features early. Make the demo reliable and impressive.
+- One endpoint gives everything needed for export.
+- No raw OCR text.
+- All data is user-scoped.
+- Missing data is handled gracefully.
 
-Stage 6.1: Full QA Pass
+### Stage 2.2 — Doctor Summary UI / Export
+
+Preferred implementation:
+
+- Create a dedicated Doctor Summary page or modal.
+- Add button on Dashboard and Vault: “Doctor Summary.”
+- Use browser print/export if server PDF is too risky.
+
+Minimum visible sections:
+
+- Patient Identity
+- Health Snapshot
+- Active/Recent Medications
+- Recent Diagnoses / Symptoms
+- Latest Abnormal Biomarkers
+- Timeline Highlights
+- AI Health Intelligence Brief
+- Questions to Ask Doctor
+- Disclaimer
+
+This must not look like a screenshot of the dashboard. It should look doctor-readable.
+
+Acceptance criteria:
+
+- One click opens printable/exportable summary.
+- Works for demo user.
+- Can be explained as solving: “new doctors need patient history fast.”
+- Print layout is clean.
+
+### Stage 2.3 — Repository Views
+
+Expose the health memory visually.
+
+Add or improve sections/pages for:
+
+- medication history
+- diagnosis history
+- symptom history
+- advice and tests advised
+- timeline events
+
+This can live inside Vault or a new Repository page.
+
+Do not overbuild. The evaluator only needs to see that structured health memory exists.
+
+Acceptance criteria:
+
+- User can see medicines across reports.
+- User can see diagnoses across reports.
+- User can see doctor advice/tests advised.
+- Each item shows first seen / last seen or occurrence count if available.
+- Empty states are polished.
+
+---
+
+## Day 3 — QA, Demo, Freeze
+
+Goal: stop building early and make the project reliable.
+
+### Stage 3.1 — Full Technical QA
+
 Run:
 
-backend tests
-frontend build
-manual upload flow
-login/register
-dashboard history
-vault/report open
-chat
-export
-Gemini failure simulation if possible
+- backend tests
+- frontend build
+- server start
+- demo seed
+- login/register
+- upload lab report
+- upload prescription/entity document if available
+- dashboard load
+- vault open report
+- chat assistant
+- longitudinal insights
+- doctor summary export
+- Gemini failure behavior
+
 Acceptance criteria:
 
-No broken primary route.
-No blank dashboard.
-No unhandled API failure.
-No console-breaking frontend issue during demo.
-Stage 6.2: UX Polish
-Fix high-visibility rough edges only.
+- No broken primary route.
+- No blank dashboard.
+- No uncaught frontend crash.
+- No API route returns confusing raw errors.
+- Demo user works from clean seed.
+- Tests pass.
+
+### Stage 3.2 — UX Polish
+
+Fix only high-visibility issues.
 
 Polish:
 
-loading states
-skeleton cards
-upload progress text
-empty states
-error banners
-mobile-ish responsiveness
-consistent colors/spacing
-medical safety disclaimer
-Do not start large new features.
+- loading states
+- empty states
+- error banners
+- button labels
+- dashboard spacing
+- export print layout
+- chat suggested prompts
+- medical disclaimers
+- demo credentials documentation
 
-Stage 6.3: Evaluation Script
-Prepare a fixed 3-5 minute demo:
+Do not start new features.
 
-“Health records are scattered.”
-Register/login as patient.
-Upload lab report/prescription.
-Show structured extraction and review.
-Show dashboard trends and alerts.
-Show vault/timeline.
-Ask assistant: “What changed since my last report?”
-Export doctor summary.
-Close with safety: “HealthLens assists understanding, not diagnosis.”
+### Stage 3.3 — Evaluation Script
+
+Prepare a fixed 3–5 minute script.
+
+Suggested script:
+
+1. “Health records are scattered across prescriptions, lab reports, and PDFs.”
+2. “HealthLens converts those documents into structured health memory.”
+3. Login as demo patient.
+4. Show dashboard health snapshot.
+5. Show trend chart and abnormal markers.
+6. Show “What changed since last report.”
+7. Show medication/diagnosis/advice repository.
+8. Ask assistant: “What changed since my last report?”
+9. Ask assistant: “What medicines am I currently taking?”
+10. Show Doctor Summary Export.
+11. Close: “HealthLens assists understanding and doctor communication. It does not diagnose or replace doctors.”
+
 Acceptance criteria:
 
-You can run the demo without improvising.
-Demo data supports every claim.
-If Gemini fails, fallback still lets you continue.
-What I Would Not Prioritize
-I’m going to be strict here.
+- Demo does not require improvisation.
+- Demo data supports every claim.
+- If Gemini fails, fallback still allows demo to continue.
+- You can complete demo in 5 minutes.
 
-Do not spend the remaining time on:
+---
 
-Rewriting deterministic extraction
-Large OCR edge-case work
-Hospital discovery
-Wearables
-Voice assistant
-Multilingual support
-Complex calendar implementation if mini calendar already communicates timeline
-Perfect PDF generation if a polished export works
-Overly broad rate limiting across every route
-Do spend time on:
+# Demo Questions for AI Assistant
 
-AI route protection
-Longitudinal insights
-Dashboard polish
-Doctor summary
-Demo reliability
-First Work Stage When We Start
-When you switch to Agent mode, the first actual implementation stage should be:
+Add suggested prompts:
 
-Stage 4.1 + 4.2: verify current code, then add AI token protection and graceful Gemini failure handling.
+- What changed since my last report?
+- Which biomarkers need attention?
+- What medicines am I currently taking?
+- What did the doctor advise recently?
+- What questions should I ask my doctor?
+- Show my latest abnormal results.
+- Has my blood sugar improved over time?
+- Summarize my health history for a doctor.
 
-That is the right foundation before building more AI features.
+---
+
+# Medical Safety Rules
+
+Every AI-generated insight must follow these rules:
+
+- Do not diagnose.
+- Do not prescribe.
+- Do not claim certainty.
+- Do not replace clinical judgment.
+- Use structured facts.
+- Mention dates and values when possible.
+- Recommend discussing concerns with a healthcare professional.
+
+Required disclaimer:
+
+> HealthLens AI provides informational insights based on uploaded records. It does not diagnose, prescribe treatment, or replace professional medical advice.
+
+---
+
+# Final Success Criteria
+
+The project is successful if an evaluator can clearly see:
+
+- This is not a report summarizer.
+- It builds a personal health memory.
+- It tracks health over time.
+- It provides useful, safe AI insights.
+- It helps doctors understand patients faster.
+- It has a polished interface.
+- It works reliably with demo data.
+- It has credible engineering: auth, persistence, tests, rate limits, fallback handling.
+
+---
+
+# Freeze Rule
+
+After Day 3 QA begins:
+
+Do not add new features unless they fix a demo-blocking issue.
+
+Allowed:
+
+- bug fixes
+- copy fixes
+- layout polish
+- fallback fixes
+- test fixes
+- demo script updates
+
+Not allowed:
+
+- new major modules
+- new AI flows
+- new OCR architecture
+- new database redesign
+- large UI rewrites
+```
+
+The project is already beyond a basic MVP. The risk now is not “missing features”; it is spreading effort across too many impressive-sounding ideas. To score maximum marks, make the evaluator feel the transformation from scattered documents → structured health memory → longitudinal insight → doctor-ready summary. That is the strongest version of the original vision within the remaining time.
+
 Here is the current state of my project. Read this and wait for my first instruction.
 Read @PROJECT_CONTEXT.md
+
+You're are the Lead Full Stack Software engineer of the project here, you have to be strict and do not become agreeable assistant who obeys all i say. You have the power to accept, refine or even reject what i say.
+Be the professional, alongsideworking with we achieve success in this project
