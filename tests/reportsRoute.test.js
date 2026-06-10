@@ -1,6 +1,11 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { historyHandler, getByIdHandler, deleteByIdHandler } = require("../routes/reports");
+const {
+  historyHandler,
+  getByIdHandler,
+  fileDownloadHandler,
+  deleteByIdHandler,
+} = require("../routes/reports");
 
 function createMockRes() {
   return {
@@ -144,6 +149,78 @@ test("getById handler returns 404 when report not found", async () => {
   assert.match(res.body.message, /Report not found/);
 });
 
+const reportWithStoredFile = {
+  ...ownedReport,
+  provenance: {
+    cloudinaryPublicId: "healthlens/users/u1/report.pdf",
+    cloudinaryResourceType: "raw",
+    originalFilename: "cbc-report.pdf",
+    mimeType: "application/pdf",
+  },
+};
+
+test("fileDownloadHandler returns signed URL for owner with stored file", async () => {
+  const res = createMockRes();
+
+  await fileDownloadHandler(
+    { params: { id: ownedReportId }, user: { id: stubUserId } },
+    res,
+    {
+      findById: async () => reportWithStoredFile,
+      isCloudinaryEnabled: () => true,
+      getSignedDownloadUrl: () => "https://signed.example/cbc-report.pdf",
+    },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(res.body.success, true);
+  assert.equal(res.body.downloadUrl, "https://signed.example/cbc-report.pdf");
+  assert.equal(res.body.filename, "cbc-report.pdf");
+  assert.equal(res.body.mimeType, "application/pdf");
+  assert.equal(res.body.expiresInSeconds, 300);
+});
+
+test("fileDownloadHandler returns 404 when no stored file", async () => {
+  const res = createMockRes();
+
+  await fileDownloadHandler(
+    { params: { id: ownedReportId }, user: { id: stubUserId } },
+    res,
+    { findById: async () => ownedReport },
+  );
+
+  assert.equal(res.statusCode, 404);
+  assert.match(res.body.message, /No stored file/);
+});
+
+test("fileDownloadHandler returns 403 for non-owner", async () => {
+  const res = createMockRes();
+
+  await fileDownloadHandler(
+    { params: { id: ownedReportId }, user: { id: otherUserId } },
+    res,
+    { findById: async () => reportWithStoredFile },
+  );
+
+  assert.equal(res.statusCode, 403);
+});
+
+test("fileDownloadHandler returns 400 for malformed report id", async () => {
+  const res = createMockRes();
+
+  await fileDownloadHandler(
+    { params: { id: "notavalidid123" }, user: { id: stubUserId } },
+    res,
+    {
+      findById: async () => {
+        throw new Error("findById should not be called");
+      },
+    },
+  );
+
+  assert.equal(res.statusCode, 400);
+});
+
 test("deleteById handler deletes owned report", async () => {
   const res = createMockRes();
   let deletedId = null;
@@ -163,6 +240,32 @@ test("deleteById handler deletes owned report", async () => {
   assert.equal(res.body.success, true);
   assert.equal(res.body.reportId, ownedReportId);
   assert.equal(deletedId, ownedReportId);
+});
+
+test("deleteById handler removes Cloudinary asset when present", async () => {
+  const res = createMockRes();
+  let deletedId = null;
+  let removedPublicId = null;
+
+  await deleteByIdHandler(
+    { params: { id: ownedReportId }, user: { id: stubUserId } },
+    res,
+    {
+      findById: async () => reportWithStoredFile,
+      deleteById: async (id) => {
+        deletedId = id;
+      },
+      isCloudinaryEnabled: () => true,
+      deleteReportFile: async (publicId) => {
+        removedPublicId = publicId;
+        return { result: "ok" };
+      },
+    },
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.equal(deletedId, ownedReportId);
+  assert.equal(removedPublicId, "healthlens/users/u1/report.pdf");
 });
 
 test("deleteById handler returns 403 for non-owner", async () => {

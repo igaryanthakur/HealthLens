@@ -9,6 +9,7 @@
 - `JWT_SECRET` set in `.env`
 - **Recommended for eval:** `LONGITUDINAL_AI_ENABLED=false` — dashboard insights use the deterministic brief (strong for Priya's narrative; no Gemini stall)
 - `GEMINI_API_KEY` optional for seed; **required at demo time** only if you show Chat or live upload interpretation
+- **Optional for Vault download:** `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` — when set, live uploads store originals and Vault shows a download button; seeded demo reports have no stored files
 - Run with **`npm run dev`** (backend `:5000` + frontend `:5173`) — do not use preview-only for full-stack demo
 
 ## Seed the demo patient
@@ -88,7 +89,7 @@ RESET_DEMO_PASSWORD=true npm run seed:demo
 | 6 | Timeline scrubber | 4 pills; switching changes dashboard |
 | 7 | Select prescription (Mar 22) | DocumentEntitiesCard with Metformin |
 | 8 | Repository (`/repository`) | Rollup tables; 6-stat strip matches seed counts |
-| 9 | Vault | 4 cards; 2 Attention Needed, 2 Stable |
+| 9 | Vault | 4 cards; 2 Attention Needed, 2 Stable; download icon only on live-uploaded reports when Cloudinary is configured |
 | 10 | Doctor Summary (`/doctor-summary`) | Print/export; disclaimer visible |
 | 11 | Navbar Upload | `/dashboard?upload=1` with existing history |
 | 12 | Run `npm run seed:demo` twice | Same dashboard state (idempotency) |
@@ -174,4 +175,5 @@ Memorize or print this flow.
 | `JWT_SECRET` | Set |
 | `LONGITUDINAL_AI_ENABLED` | `false` |
 | `GEMINI_API_KEY` | Set if showing Chat or live interpret |
+| `CLOUDINARY_*` | Set if demoing Vault download of uploaded originals |
 | Run mode | `npm run dev` |

@@ -1,74 +1,44 @@
-# HealthLens AI - Clinical Filtering Backend MVP
+# HealthLens AI
 
-This phase builds a backend-only Node.js service that accepts medical reports, extracts text locally, runs deterministic clinical filtering, and returns both traceable cleaned text and structured clinical measurements.
+**A Personal Health Intelligence System** — turn scattered medical documents into structured health memory, longitudinal insights, and doctor-ready summaries.
 
-## Project context
+> HealthLens assists understanding and organization. It does **not** diagnose, prescribe, or replace professional medical advice.
 
-For architecture, vision, milestone status, and agent onboarding, see [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md).  
-For evaluation demo credentials and script, see [docs/DEMO.md](docs/DEMO.md).  
-This file is updated automatically after significant changes.
+---
 
-## Scope (This Phase)
+## What is HealthLens?
 
-- Upload medical report files (`PDF`, `JPG`, `JPEG`, `PNG`)
-- Extract text locally (`pdf-parse` and OCR fallback with `tesseract.js`)
-- Deterministic full cleanup (`cleanedTextFull`)
-- Clinically focused subset (`cleanedTextClinical`)
-- Structured JSON extraction (`structured.patient_info`, `structured.measurements`)
-- Canonical-alias range-stripping extractor (38 parameters from `canonicalMap.json`)
-- LLM-ready `aiPrompt` text generated from structured output
-- Gemini-powered interpretation (`summary`, `findings`, `recommendations`) via `POST /api/interpret`
-- Deterministic status/priority assignment (range first, thresholds fallback)
+Most people store health records as PDFs, lab printouts, and prescriptions in folders or email. HealthLens helps you:
 
-Not included in this phase:
-- MongoDB
+1. **Upload** lab reports and prescriptions (PDF or image)
+2. **Extract** biomarkers and clinical entities with deterministic parsing (numbers are never guessed by AI)
+3. **Interpret** results in plain language via Google Gemini
+4. **Track** changes over time — trends, alerts, and a personal health timeline
+5. **Remember** medications, diagnoses, and advice across all reports in one **Repository**
+6. **Export** a printable **Doctor Summary** for clinical handoffs
+7. **Chat** with an assistant grounded in your uploaded records (optional)
 
-Frontend:
-- `client/` — Vite + React on port 5173, Tailwind v3 (Vitality Core design tokens), upload → AI dashboard flow, dev proxy to backend `/api`
+This is **not** a one-off report summarizer. It builds **longitudinal health intelligence** from your document history.
 
-## Tech Stack
+---
 
-- Node.js + Express
-- Multer
-- pdf-parse
-- pdfjs-dist (+ @napi-rs/canvas for PDF page rendering)
-- sharp
-- tesseract.js
-- @google/generative-ai (Gemini 1.5 Flash)
-- dotenv
+## Quick start
 
-## Project Structure
+### Prerequisites
 
-- `server.js`
-- `routes/interpret.js`
-- `middleware/upload.js`
-- `services/aiService.js`
-- `services/extractionService.js`
-- `services/clinicalFilterService.js`
-- `services/pdfService.js`
-- `services/ocrService.js`
-- `utils/textCleanup.js`
-- `utils/clinical/metadataPrepass.js`
-- `utils/clinical/boilerplateRemoval.js`
-- `utils/clinical/candidateFilter.js`
-- `utils/clinical/parameterRegexMap.js` (canonical-alias range-stripping extractor)
-- `utils/aiContextGenerator.js`
-- `utils/clinical/referenceRangeParser.js`
-- `utils/clinical/statusPriorityEngine.js`
-- `utils/clinical/dedupeProvenance.js`
-- `utils/fileCleanup.js`
-- `utils/logger.js`
-- `uploads/`
+- [Node.js](https://nodejs.org/) 18+
+- [MongoDB](https://www.mongodb.com/) — local or [Atlas](https://www.mongodb.com/atlas) (`MONGODB_URI`)
+- [Google Gemini API key](https://aistudio.google.com/apikey) — required for AI interpretation, chat, and prescription extraction
 
-## Setup
-
-1) Install dependencies:
+### 1. Clone and install
 
 ```bash
+git clone <your-repo-url>
+cd HealthLens
 npm install
 ```
 
-2) Create `.env` from `.env.example`:
+### 2. Configure environment
 
 ```bash
 cp .env.example .env
@@ -80,219 +50,135 @@ On Windows PowerShell:
 Copy-Item .env.example .env
 ```
 
-Set `GEMINI_API_KEY` in `.env` (required for `POST /api/interpret`). Get a key from [Google AI Studio](https://aistudio.google.com/apikey).
+Edit `.env` — minimum required:
 
-3) Start backend and frontend (from repo root):
+| Variable | Description |
+|----------|-------------|
+| `MONGODB_URI` | MongoDB connection string |
+| `JWT_SECRET` | Secret for auth tokens |
+| `GEMINI_API_KEY` | Google Gemini API key |
+
+### 3. Seed demo data (recommended first run)
+
+```bash
+npm run seed:demo
+```
+
+**Demo login:** `demo@healthlens.ai` / `DemoHealth2026!`
+
+Includes a 4-report patient story (Jan–Jun 2026) with labs, prescription, and trends. See [docs/DEMO.md](docs/DEMO.md) for the full evaluation script.
+
+### 4. Run the app
 
 ```bash
 npm run dev
 ```
 
-Runs the API on `http://localhost:5000` and the React app on `http://localhost:5173`.
+| Service | URL |
+|---------|-----|
+| Frontend | http://localhost:5173 |
+| API | http://localhost:5000 |
 
-Or start the backend only:
+Register your own account, or use the demo credentials above.
+
+---
+
+## Main features
+
+| Feature | Route | Description |
+|---------|-------|-------------|
+| Dashboard | `/dashboard` | Vitality score, trends, longitudinal insights, biomarker breakdown |
+| Health Vault | `/vault` | Searchable archive of all uploaded reports |
+| Repository | `/repository` | Cross-report rollups: meds, diagnoses, symptoms, advice |
+| Doctor Summary | `/doctor-summary` | Printable consolidated summary for clinicians |
+| Assistant | `/chat` | AI chat grounded in your health records |
+| Profile | `/profile` | Account, security, and health profile |
+| Privacy / Terms | `/privacy`, `/terms` | Legal pages |
+| Contact / Careers | `/contact`, `/careers` | Team and support |
+| Health Blog | `/blog` | Preventive health articles |
+
+**Upload:** Navbar → **Upload** (`/dashboard?upload=1`) — works even when you already have reports.
+
+---
+
+## Architecture (high level)
+
+```
+Upload (PDF/image)
+    → Deterministic extraction (pdf-parse / OCR / regex pipeline)
+    → Structured JSON (measurements + entities)
+    → Gemini interpretation (plain-language summary)
+    → MongoDB (per-user reports)
+    → Dashboard, Repository, Doctor Summary, Chat
+```
+
+**Design principle:** LLMs interpret and explain — they **never** extract numeric lab values from raw OCR text. Extraction is deterministic and testable.
+
+See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full pipeline, API reference, and file map.
+
+---
+
+## Tech stack
+
+| Layer | Technologies |
+|-------|----------------|
+| Frontend | React, Vite, Tailwind CSS, Recharts, React Router |
+| Backend | Node.js, Express 5, Mongoose |
+| Database | MongoDB |
+| Auth | JWT, bcrypt |
+| Extraction | pdf-parse, pdfjs-dist, Tesseract.js, sharp |
+| AI | Google Gemini API |
+
+---
+
+## Development
 
 ```bash
-npm start
+npm test                    # 191 backend unit tests
+npm run build --prefix client
+node scripts/qaStage31.mjs  # API smoke (re-seed demo after — see docs/DEMO.md)
 ```
 
-## Environment Variables
+| Script | Description |
+|--------|-------------|
+| `npm run dev` | Backend + frontend concurrently |
+| `npm start` | Backend only |
+| `npm run seed:demo` | Seed demo patient (idempotent) |
 
-- `PORT=5000`
-- `UPLOAD_MAX_SIZE_MB=10`
-- `PDF_MIN_TEXT_LENGTH=100`
-- `OCR_LANGUAGE=eng`
+---
 
-## API Endpoints
+## Documentation
 
-### Health check
+| Doc | Contents |
+|-----|----------|
+| [docs/DEMO.md](docs/DEMO.md) | Evaluation demo script (~5 min), env tips, checklist |
+| [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) | Technical reference for contributors |
+| [client/README.md](client/README.md) | Frontend structure and dev notes |
 
-`GET /health`
+---
 
-Example response:
+## Environment reference
 
-```json
-{
-  "success": true,
-  "status": "ok",
-  "service": "healthlens-ai-extraction-backend"
-}
-```
+| Variable | Required | Notes |
+|----------|----------|-------|
+| `MONGODB_URI` | Yes* | *Falls back to `localhost:27017/healthlens` if unset |
+| `JWT_SECRET` | Yes | Auth signing secret |
+| `GEMINI_API_KEY` | For AI features | Interpret, chat, prescription Vision |
+| `LONGITUDINAL_AI_ENABLED` | No | Set `false` for deterministic-only insights (recommended for demos) |
+| `GEMINI_VISION_MODEL` | No | Pin Vision model if default alias returns 503 |
 
-### Upload and extract
+Full list: [.env.example](.env.example)
 
-`POST /api/upload`
+---
 
-Use `multipart/form-data` with file field name: `report`
+## Medical & privacy notice
 
-#### cURL (PDF)
+- HealthLens is an **educational / demonstration** project.
+- Do not upload real patient data to shared or production deployments without proper consent and compliance review.
+- Never commit `.env` or API keys to version control.
 
-```bash
-curl -X POST http://localhost:5000/api/upload \
-  -F "report=@/absolute/path/to/report.pdf"
-```
+---
 
-#### cURL (Image)
+## License
 
-```bash
-curl -X POST http://localhost:5000/api/upload \
-  -F "report=@/absolute/path/to/report.jpg"
-```
-
-Windows PowerShell example:
-
-```powershell
-curl.exe -X POST http://localhost:5000/api/upload -F "report=@C:/Users/aryan/Downloads/reports.pdf"
-```
-
-Expected response format:
-
-```json
-{
-  "success": true,
-  "originalFilename": "reports.pdf",
-  "extractionMethod": "pdf-parse",
-  "cleanedText": "....",
-  "cleanedTextFull": "....",
-  "cleanedTextClinical": "Report Date: 2026-05-19\nhemoglobin: 8.6 g/dL | Ref: 12-16 | Status: low",
-  "structured": {
-    "patient_info": {
-      "reportDate": "2026-05-19"
-    },
-    "reportType": "CBC",
-    "measurements": [
-      {
-        "id": "cbc_hemoglobin",
-        "category": "CBC",
-        "name": "hemoglobin",
-        "rawValue": "8.6",
-        "normalizedValue": 8.6,
-        "rawUnit": "g/dL",
-        "unit": "g/dL",
-        "normalizedUnit": "g/dL",
-        "referenceRange": "12-16",
-        "status": "low",
-        "priority": "critical",
-        "method": "generalized_stripper",
-        "confidence": 0.96,
-        "confidenceSource": "ocr",
-        "validation": {
-          "ok": true,
-          "reason": null,
-          "validationError": false
-        },
-        "sourcePage": 13,
-        "sourceBBox": { "x": 120, "y": 560, "w": 220, "h": 18 },
-        "sourceLine": 28,
-        "sourceLineText": "Haemoglobin (HB) : 8.6 g/dL"
-      }
-    ],
-    "flags": ["possible_anemia"],
-    "severity": { "possible_anemia": "high" },
-    "notes": null
-  }
-}
-```
-
-Notes:
-- `cleanedText` is kept temporarily for backward compatibility and mirrors `cleanedTextFull`.
-- `cleanedTextClinical` is intended as LLM input alongside the separate interpret endpoint.
-- `patient_info` contains only `reportDate` (supports `Customer Since: 25/Apr/2026` and similar formats).
-- Extraction uses `generalized_stripper`: canonical aliases + reference-range stripping + label masking (prevents false values from labels like `B12` or `25-OH`).
-- `sourcePage/sourceBBox` are usually available for OCR paths, and nullable for direct digital PDF parsing.
-
-Possible extraction methods:
-
-- `pdf-parse` (digital PDF)
-- `pdf-ocr-fallback` (scanned PDF fallback OCR)
-- `image-ocr` (uploaded image OCR)
-
-### AI interpretation (interpret)
-
-`POST /api/interpret`
-
-Accepts JSON body with the `structured` object returned from upload. Builds a token-efficient prompt via `aiContextGenerator`, then calls Gemini 1.5 Flash with a strict JSON schema. Requires `GEMINI_API_KEY` in `.env`.
-
-#### cURL
-
-```bash
-curl -X POST http://localhost:5000/api/interpret \
-  -H "Content-Type: application/json" \
-  -d '{"structured":{"reportType":"CBC","patient_info":{"reportDate":"2026-04-25"},"measurements":[]}}'
-```
-
-Example response:
-
-```json
-{
-  "success": true,
-  "aiPrompt": "MEDICAL REPORT CONTEXT:\n- Report Type: CBC\n...",
-  "data": {
-    "summary": "Brief overview of overall health based on the report.",
-    "findings": [
-      {
-        "parameter": "Hemoglobin",
-        "status": "Low",
-        "explanation": "One-sentence, jargon-free explanation."
-      }
-    ],
-    "recommendations": ["Actionable lifestyle or dietary tip."]
-  }
-}
-```
-
-Typical flow: upload a report with `POST /api/upload`, then pass the `structured` field to `POST /api/interpret` to obtain `data` (and `aiPrompt` for debugging).
-
-## Deterministic Clinical Filtering Rules
-
-The filtering pipeline:
-
-- extracts report date from common lab date formats (`DD/MM/YYYY`, `DD/MMM/YYYY`, keyword-prefixed dates)
-- removes boilerplate lines (`Booking ID`, machine/method lines, page markers, advisory/marketing text)
-- removes obvious OCR noise and repeated headers/footers
-- keeps only clinical candidate lines (measurement + metadata signal)
-- extracts rubric measurements via canonical-alias range-stripping (CBC, Diabetes, Lipid, Kidney, Liver, Iron, Vitamins, Thyroid)
-- parses reference ranges and assigns deterministic status/priority
-- deduplicates repeated measurements while preserving source trace
-- generates `aiPrompt` and Gemini interpretation (`data`) via separate `POST /api/interpret`
-
-## Verification Checklist
-
-1) **Text-based PDF**
-- Upload a digital PDF.
-- Confirm response has non-empty `cleanedTextFull`, `cleanedTextClinical`.
-- Confirm `extractionMethod` is typically `pdf-parse`.
-- Confirm `structured.measurements` includes expected keys and values.
-
-2) **Scanned PDF**
-- Upload a scanned PDF with image-like pages.
-- Confirm OCR fallback is used when direct parse text is too short.
-- Confirm `extractionMethod` becomes `pdf-ocr-fallback`.
-- Confirm clinical output remains focused and shorter than full output.
-
-3) **Image Upload (JPG/JPEG/PNG)**
-- Upload a clear report image.
-- Confirm response includes OCR-based `cleanedTextFull` and extracted `structured.measurements`.
-- Confirm `extractionMethod` is `image-ocr`.
-
-4) **Clinical value checks**
-- Verify key values appear in `structured.measurements` when present:
-  - Hemoglobin
-  - HbA1c
-  - Vitamin D
-  - Glucose
-  - Total Cholesterol
-  - Creatinine
-
-5) **Console proof**
-- Check terminal logs for:
-  - extraction completion metadata
-  - clinical preview output (not full PHI dump)
-
-## Error Handling
-
-- Invalid file type -> `400`
-- File too large -> `400`
-- Unexpected server errors -> `500`
-
-Uploaded files are removed after processing (success/failure cleanup path included).
+ISC — see [package.json](package.json).

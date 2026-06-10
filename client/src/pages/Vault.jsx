@@ -7,6 +7,7 @@ import {
   BadgeCheck,
   CalendarClock,
   ChevronRight,
+  Download,
   FileText,
   ListFilter,
   Loader2,
@@ -14,7 +15,12 @@ import {
   Stethoscope,
   Trash2,
 } from 'lucide-react'
-import { deleteReport, fetchReportHistory } from '../lib/api'
+import {
+  deleteReport,
+  fetchReportFileUrl,
+  fetchReportHistory,
+  triggerFileDownload,
+} from '../lib/api'
 
 function formatReportDateLong(value) {
   const date = new Date(value)
@@ -68,6 +74,7 @@ export default function Vault() {
   const [searchQuery, setSearchQuery] = useState('')
   const [sortDesc, setSortDesc] = useState(true)
   const [deletingId, setDeletingId] = useState(null)
+  const [downloadingId, setDownloadingId] = useState(null)
 
   useEffect(() => {
     let cancelled = false
@@ -126,6 +133,29 @@ export default function Vault() {
 
   function openReport(reportId) {
     navigate(`/dashboard?reportId=${reportId}`)
+  }
+
+  function hasStoredFile(report) {
+    return Boolean(report.provenance?.cloudinaryPublicId)
+  }
+
+  async function handleDownloadReport(e, report) {
+    e.stopPropagation()
+
+    setDownloadingId(report._id)
+    setError(null)
+
+    try {
+      const json = await fetchReportFileUrl(report._id)
+      triggerFileDownload({
+        downloadUrl: json.downloadUrl,
+        filename: json.filename,
+      })
+    } catch (err) {
+      setError(err.message || 'Failed to download report file.')
+    } finally {
+      setDownloadingId(null)
+    }
   }
 
   async function handleDeleteReport(e, report) {
@@ -285,6 +315,8 @@ export default function Vault() {
               const { day, month } = getDateParts(report.reportDate)
               const title = getReportTitle(report)
               const isDeleting = deletingId === report._id
+              const isDownloading = downloadingId === report._id
+              const storedFilename = report.provenance?.originalFilename
 
               if (needsAttention) {
                 return (
@@ -309,11 +341,31 @@ export default function Vault() {
                         Analyzed by HealthLens AI • {abnormalCount} High Value
                         {abnormalCount !== 1 ? 's' : ''}
                       </p>
+                      {storedFilename && (
+                        <p className="text-on-surface-variant text-xs mt-1 truncate">
+                          {storedFilename}
+                        </p>
+                      )}
                     </div>
                     <div className="flex items-center gap-3">
                       <span className="hidden md:inline-flex px-3 py-1 bg-secondary-container text-on-secondary-container rounded-full text-xs font-bold uppercase tracking-wider">
                         Attention Needed
                       </span>
+                      {hasStoredFile(report) && (
+                        <button
+                          type="button"
+                          onClick={(e) => handleDownloadReport(e, report)}
+                          disabled={isDownloading}
+                          aria-label={`Download ${title}`}
+                          className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                        >
+                          {isDownloading ? (
+                            <Loader2 size={16} className="animate-spin" />
+                          ) : (
+                            <Download size={16} />
+                          )}
+                        </button>
+                      )}
                       <button
                         type="button"
                         onClick={(e) => handleDeleteReport(e, report)}
@@ -355,11 +407,31 @@ export default function Vault() {
                       Analyzed by HealthLens AI • {biomarkerCount} Biomarker
                       {biomarkerCount !== 1 ? 's' : ''}
                     </p>
+                    {storedFilename && (
+                      <p className="text-on-surface-variant text-xs mt-1 truncate">
+                        {storedFilename}
+                      </p>
+                    )}
                   </div>
                   <div className="flex items-center gap-3">
                     <span className="hidden md:inline-flex px-3 py-1 bg-primary/10 text-primary rounded-full text-xs font-bold uppercase tracking-wider">
                       Stable
                     </span>
+                    {hasStoredFile(report) && (
+                      <button
+                        type="button"
+                        onClick={(e) => handleDownloadReport(e, report)}
+                        disabled={isDownloading}
+                        aria-label={`Download ${title}`}
+                        className="flex h-9 w-9 items-center justify-center rounded-full text-slate-400 hover:text-primary hover:bg-primary/10 transition-colors disabled:opacity-50"
+                      >
+                        {isDownloading ? (
+                          <Loader2 size={16} className="animate-spin" />
+                        ) : (
+                          <Download size={16} />
+                        )}
+                      </button>
+                    )}
                     <button
                       type="button"
                       onClick={(e) => handleDeleteReport(e, report)}

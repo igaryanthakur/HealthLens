@@ -55,6 +55,10 @@ const ProvenanceSchema = new mongoose.Schema(
     originalFilename: String,
     extractionMethod: String,
     confidence: Number,
+    cloudinaryPublicId: String,
+    cloudinaryResourceType: { type: String, enum: ["image", "raw"], default: "image" },
+    mimeType: String,
+    bytes: Number,
   },
   { _id: false },
 );

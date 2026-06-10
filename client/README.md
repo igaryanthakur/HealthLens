@@ -1,16 +1,109 @@
-# React + Vite
+# HealthLens — Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some ESLint rules.
+React single-page application for [HealthLens AI](../README.md). Built with Vite, Tailwind CSS, and React Router.
 
-Currently, two official plugins are available:
+## Run locally
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+From the **repository root** (recommended):
 
-## React Compiler
+```bash
+npm run dev
+```
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+Opens at http://localhost:5173 with `/api` proxied to the backend on port 5000.
 
-## Expanding the ESLint configuration
+Frontend only (API must be running separately):
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and [`typescript-eslint`](https://typescript-eslint.io) in your project.
+```bash
+npm install
+npm run dev --prefix client
+```
+
+Production build:
+
+```bash
+npm run build --prefix client
+npm run preview --prefix client   # static preview only — no API proxy
+```
+
+> Use `npm run dev` from the repo root for full-stack development. Vite `preview` does not proxy API calls.
+
+---
+
+## Routes
+
+| Path | Page | Auth |
+|------|------|------|
+| `/` | Landing | Public |
+| `/login`, `/register` | Auth | Public |
+| `/dashboard` | Upload + report dashboard | Protected |
+| `/dashboard?upload=1` | Upload mode (with existing history) | Protected |
+| `/dashboard?reportId=<id>` | Specific report | Protected |
+| `/vault` | Report archive | Protected (lazy) |
+| `/repository` | Health memory rollups | Protected (lazy) |
+| `/doctor-summary` | Printable doctor summary | Protected (lazy) |
+| `/chat` | AI assistant | Protected |
+| `/profile` | Account & health profile | Protected |
+| `/privacy`, `/terms` | Legal pages | Public |
+| `/contact`, `/careers` | Support & careers | Public |
+| `/blog` | Health blog | Public |
+
+Auth gate: `ProtectedRoute` in `src/App.jsx` checks JWT in `localStorage`.
+
+---
+
+## Project structure
+
+```
+client/src/
+├── App.jsx              # Router, Navbar, Footer, lazy routes
+├── pages/               # Route-level pages
+├── components/
+│   ├── Dashboard/       # VitalitySnapshot, trends, biomarkers, insights
+│   ├── Layout/          # Navbar, Footer
+│   ├── Auth/            # Login/register panels
+│   ├── UploadZone.jsx
+│   ├── ProcessingView.jsx
+│   └── ReviewExtraction.jsx
+└── lib/
+    ├── api.js           # API client, auth token, caches
+    ├── trends.js        # Pure trend series logic
+    ├── structured.js    # Report → dashboard payload
+    └── biomarkerIntelligence.js
+```
+
+---
+
+## API client (`src/lib/api.js`)
+
+- JWT stored in `localStorage` (`healthlens_auth_token`)
+- **Insights cache:** `localStorage`, keyed by report history signature
+- **Repository overview cache:** in-memory session cache (cleared on auth change, upload, delete)
+
+All protected calls send `Authorization: Bearer <token>`.
+
+---
+
+## Design system
+
+**Vitality Core** — slate/teal palette, rounded cards, glass Navbar. Tokens live in `src/index.css` and Tailwind config.
+
+Icons: [lucide-react](https://lucide.dev/). Charts: [Recharts](https://recharts.org/).
+
+---
+
+## Testing
+
+No frontend test harness yet. Logic-heavy modules (`lib/trends.js`, `lib/biomarkerIntelligence.js`) are kept pure for future tests. Build gate:
+
+```bash
+npm run build --prefix client
+```
+
+---
+
+## Related docs
+
+- [Root README](../README.md) — full project overview
+- [docs/DEMO.md](../docs/DEMO.md) — demo script and credentials
+- [PROJECT_CONTEXT.md](../PROJECT_CONTEXT.md) — backend API reference

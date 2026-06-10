@@ -2,6 +2,10 @@ const express = require("express");
 const upload = require("../middleware/upload");
 const { protect } = require("../middleware/authMiddleware");
 const { extractMedicalReportText } = require("../services/extractionService");
+const {
+  uploadReportFile,
+  isCloudinaryEnabled,
+} = require("../services/cloudinaryService");
 const { cleanupFile } = require("../utils/fileCleanup");
 const logger = require("../utils/logger");
 
@@ -27,6 +31,28 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
       originalFilename: req.file.originalname,
       extractionMethod: structured.provenance?.extractionMethod || methodUsed,
     };
+
+    if (isCloudinaryEnabled()) {
+      try {
+        const fileStorage = await uploadReportFile(uploadedFilePath, {
+          userId: req.user.id,
+          originalFilename: req.file.originalname,
+          mimeType: req.file.mimetype,
+        });
+
+        structured.provenance = {
+          ...structured.provenance,
+          ...fileStorage,
+        };
+      } catch (storageError) {
+        logger.error("Cloudinary upload failed", { error: storageError.message });
+        return res.status(503).json({
+          success: false,
+          message:
+            "Report was extracted but file storage is temporarily unavailable. Please try uploading again.",
+        });
+      }
+    }
 
     logger.info("Extraction completed", {
       filename: req.file.originalname,

@@ -42,6 +42,7 @@ function buildReportFromStructured(structured, userId, aiInterpretation) {
       ? new Date(structured.patient_info.reportDate)
       : undefined,
     measurements: mapMeasurementsForReport(structured.measurements),
+    provenance: structured.provenance || undefined,
     aiInterpretation,
   });
 }

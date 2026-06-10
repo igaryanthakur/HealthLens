@@ -1,7 +1,7 @@
 {
   "name": "healthlens-ai",
   "version": "1.0.0",
-  "description": "Extraction-only backend MVP for HealthLens AI",
+  "description": "Personal Health Intelligence System — extract, track, and understand medical records over time",
   "main": "server.js",
   "scripts": {
     "start": "node server.js",
@@ -19,6 +19,7 @@
     "@google/generative-ai": "^0.24.1",
     "@napi-rs/canvas": "^1.0.0",
     "bcryptjs": "^3.0.3",
+    "cloudinary": "^2.10.0",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.5.2",

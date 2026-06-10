@@ -177,6 +177,40 @@ test("interpret handler defaults documentType to lab_report when absent", async 
   assert.equal(savedReport.documentType, "lab_report");
 });
 
+test("interpret handler persists structured provenance when present", async () => {
+  const sample = ["Haemoglobin (HB) : 8.6 g/dL 12-15"].join("\n");
+  const { structured } = filterClinicalData(sample, { ocrPages: [] });
+  structured.provenance = {
+    originalFilename: "cbc-report.pdf",
+    extractionMethod: "pdf-parse",
+    cloudinaryPublicId: "healthlens/users/u1/cbc-report.pdf",
+    cloudinaryResourceType: "raw",
+    mimeType: "application/pdf",
+    bytes: 4096,
+  };
+  const res = createMockRes();
+  let savedReport = null;
+
+  await interpretHandler(
+    { body: { structured }, user: { id: stubUserId } },
+    res,
+    createTestDeps({
+      saveReport: async (doc) => {
+        savedReport = doc;
+        return { _id: stubReportId };
+      },
+    }),
+  );
+
+  assert.equal(res.statusCode, 200);
+  assert.ok(savedReport);
+  assert.equal(savedReport.provenance.originalFilename, "cbc-report.pdf");
+  assert.equal(savedReport.provenance.cloudinaryPublicId, "healthlens/users/u1/cbc-report.pdf");
+  assert.equal(savedReport.provenance.cloudinaryResourceType, "raw");
+  assert.equal(savedReport.provenance.mimeType, "application/pdf");
+  assert.equal(savedReport.provenance.bytes, 4096);
+});
+
 test("interpret handler persists explicit structured.documentType", async () => {
   const sample = ["Haemoglobin (HB) : 8.6 g/dL 12-15"].join("\n");
   const { structured } = filterClinicalData(sample, { ocrPages: [] });

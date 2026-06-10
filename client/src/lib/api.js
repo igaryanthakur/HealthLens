@@ -165,6 +165,23 @@ export async function fetchReportById(id) {
   return parseJsonResponse(res);
 }
 
+export async function fetchReportFileUrl(reportId) {
+  const res = await fetch(`/api/reports/${reportId}/file`, {
+    headers: authHeaders(),
+  });
+
+  return parseJsonResponse(res);
+}
+
+export function triggerFileDownload({ downloadUrl, filename }) {
+  const anchor = document.createElement('a');
+  anchor.href = downloadUrl;
+  anchor.download = filename || 'report';
+  anchor.target = '_blank';
+  anchor.rel = 'noopener noreferrer';
+  anchor.click();
+}
+
 export async function fetchMedicationHistory() {
   const res = await fetch('/api/repository/medications', {
     headers: authHeaders(),

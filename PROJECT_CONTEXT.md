@@ -1,18 +1,21 @@
 # HealthLens AI — Project Context
 
 **Last Updated:** Wednesday, June 10, 2026  
-**Status:** Day 6 freeze — Stage 3.1 QA + 3.2 polish + 3.3 demo guide complete; eval-ready on `npm run dev` + `npm run seed:demo`
+**Status:** Eval-ready · **203/203** tests · freeze (bug fixes + docs only)
+
+> Contributor and agent reference. For onboarding, start with [README.md](README.md).
 
 ---
 
-## 1. Project Vision & Identity
+## 1. Vision
 
 **HealthLens AI** is an AI-Powered Personal Health Intelligence System.  
 *Do not describe it as a simple "medical report summarizer".*
 
 It is a web-based platform that helps patients understand, organize, and analyze their medical records by extracting structured data, tracking longitudinal trends over time, identifying anomalies, and generating actionable, practical health insights.
 
-**Core Objectives:**
+**Core objectives:**
+
 1. Extract structured information (vitals/dates) deterministically.
 2. Simplify medical terminology via AI.
 3. Detect abnormal values and risk indicators.
@@ -21,68 +24,104 @@ It is a web-based platform that helps patients understand, organize, and analyze
 
 ---
 
-## 2. Tech Stack & Infrastructure
+## 2. System overview
 
-### Target platform (full product)
+```mermaid
+flowchart LR
+  user[User] --> upload[Upload_PDF_or_image]
+  upload --> extract[Deterministic_extraction]
+  extract --> structured[Structured_JSON]
+  structured --> interpret[Gemini_interpretation]
+  interpret --> mongo[(MongoDB)]
+  mongo --> dash[Dashboard]
+  mongo --> repo[Repository]
+  mongo --> doc[Doctor_Summary]
+  mongo --> chat[Chat_Assistant]
+```
 
-| Layer | Stack |
-|-------|-------|
-| Frontend | React.js, Tailwind CSS, Recharts, FullCalendar |
-| Backend | Node.js, Express.js |
-| Database | MongoDB |
-| Authentication | JWT, bcrypt |
-| OCR & Extraction | PDF.js (`pdf-parse`), Tesseract.js, `sharp` |
-| AI | Google Gemini API (`gemini-1.5-flash`) |
+**Typical user flow:** Landing (`/`) → register/login → `/dashboard` upload (`POST /api/upload`) → interpret (`POST /api/interpret`) → dashboard with timeline, trends, and insights. Browse history via `/vault`; cross-report rollups at `/repository`; printable export at `/doctor-summary`.
 
-### Currently in repo (MVP — Day 1–4)
-
-- **Backend:** Node.js + Express 5 (CommonJS) on port 5000
-- **React frontend:** [`client/`](client/) — Vite + React, Tailwind CSS v3 (Vitality Core tokens), lucide-react, recharts, **react-router-dom**; page routes (`/`, `/login`, `/register`, `/dashboard`, `/vault`, `/repository`, `/chat`, `/profile`, `/doctor-summary`); dev proxy `/api` → `localhost:5000`
-- **MongoDB:** Mongoose + [`models/Report.js`](models/Report.js) — connection string from `process.env.MONGODB_URI` (MongoDB Atlas in shared/prod), falling back to `mongodb://localhost:27017/healthlens` when unset, via [`config/db.js`](config/db.js); server connects before listen. Report schema holds `measurements` + `aiInterpretation` plus **Stage 1 entity scaffolding** (`documentType` enum, `medications[]`, `diagnoses[]`, `symptoms[]`, `doctorAdvice[]`, `testsAdvised[]`, `provenance`) — all optional/defaulted, populated starting Stage 2
-- **JWT auth:** [`models/User.js`](models/User.js) (nested `profile` subdocument: DOB, gender, blood group, biometrics, chronic conditions, lifestyle), [`routes/auth.js`](routes/auth.js), [`routes/users.js`](routes/users.js), [`middleware/authMiddleware.js`](middleware/authMiddleware.js) — `bcryptjs` password hashing, `jsonwebtoken` (30d expiry); `protect` on upload/interpret/history/users routes; reports scoped by `userId` ObjectId ref
-- **Local extraction:** `pdf-parse`, `pdfjs-dist`, `@napi-rs/canvas`, `tesseract.js`, `sharp`
-- **Manual UI:** [`index.html`](index.html) — browser upload tester (fetch → `POST /api/upload`)
-- **Workspace:** `c:\Users\aryan\Downloads\College\Projects\HealthLens AI`
-- **Commands:** `npm install` · `npm run dev` (backend port 5000 + frontend port 5173) · `npm test` · `npm run seed:demo` (demo patient — see [`docs/DEMO.md`](docs/DEMO.md))
-
-### Core endpoints (current)
-
-| Endpoint | Status | Purpose |
-|----------|--------|---------|
-| `GET /health` | Live | System health check |
-| `POST /api/upload` | Live (auth + rate limit) | Bearer JWT required. Multer upload (`report` field, 10MB max, PDF/JPG/JPEG/PNG) + optional `documentType` hint (`auto`/`lab_report`/`prescription`/...). Routes to the deterministic lab pipeline or the prescription Vision lane; returns `structured` JSON (lab measurements OR prescription entities) + cleaned text fields; `503` with friendly message when AI extraction lanes fail |
-| `POST /api/interpret` | Live (auth + rate limit) | Bearer JWT required. Accepts `{ structured }`. Fetches user profile, builds profile-aware prompt via [`utils/profileContextBuilder.js`](utils/profileContextBuilder.js), calls Gemini via [`services/aiService.js`](services/aiService.js) (timeout + single retry). Persists [`models/Report.js`](models/Report.js) with `userId` even when Gemini fails (fallback `aiInterpretation`). Returns `{ success, aiPrompt, data, reportId, aiUnavailable? }` where `data` is `{ summary, findings, recommendations }` |
-| `GET /api/reports/history` | Live (auth) | Bearer JWT required. Returns authenticated user's reports sorted by `reportDate` ascending. Each report includes `vitalityScore` virtual (100 minus 5 per low/high measurement) |
-| `GET /api/reports/:id` | Live (auth) | Bearer JWT required. Returns `{ success, report }` for the authenticated owner; `400` if `id` is not a valid ObjectId; 403 if `userId` mismatch; 404 if not found |
-| `POST /api/auth/register` | Live | Accepts `{ name, email, password }`. Creates user (bcrypt-hashed password), returns `{ success, user, token }` |
-| `POST /api/auth/login` | Live | Accepts `{ email, password }`. Validates credentials via `matchPassword`, returns `{ success, user, token }` |
-| `GET /api/users/me` | Live (auth) | Bearer JWT required. Returns `{ success, user }` with nested `profile` (password excluded) |
-| `PUT /api/users/profile` | Live (auth) | Bearer JWT required. Accepts profile fields (`dateOfBirth`, `gender`, `bloodGroup`, `heightCm`, `weightKg`, `chronicConditions`, `lifestyle`). Updates logged-in user's profile, returns updated user |
-| `PUT /api/users/account` | Live (auth) | Bearer JWT required. Updates `name` and/or `email` (unique check, normalized email). Returns `{ success, user }` |
-| `PUT /api/users/password` | Live (auth) | Bearer JWT required. Accepts `{ currentPassword, newPassword }` (min 8 chars, must differ). Verifies current password; bcrypt re-hash on save. Returns `{ success, message }` |
-| `DELETE /api/reports/:id` | Live (auth) | Bearer JWT required. Deletes the authenticated owner's report; `400` if `id` is not a valid ObjectId; `403` on mismatch, `404` if missing. Returns `{ success, reportId }` |
-| `POST /api/chat` | Live (auth + rate limit) | Bearer JWT required. Accepts `{ message }` (max 1500 chars). Loads `user.profile` + latest 10 reports via [`utils/chatContextBuilder.js`](utils/chatContextBuilder.js) `buildBoundedChatHistory()`, passes to [`services/aiService.js`](services/aiService.js) `generateChatResponse(message, profile, history)` with JSON-stringified bounded context in system prompt. Returns `{ success, reply }` or `503` with friendly message on AI failure |
-| `POST /api/prescriptions` | Live (auth) | Bearer JWT required. Backward-compatible prescription save; delegates to the generalized handler with `documentType: "prescription"`. Saves a `Report` with empty `measurements` and a deterministic `aiInterpretation.summary` (no Gemini call on save). Returns `{ success, reportId }` |
-| `POST /api/documents` | Live (auth) | Bearer JWT required. Generalized reviewed-document save (Stage 2b). Accepts user-confirmed `{ documentType, medications, diagnoses, symptoms, doctorAdvice, testsAdvised, reportDate, provenance }` for any entity-bearing type (`prescription`/`scan_report`/`discharge_summary`/`typed_note`/`unknown`); derives `reportType`, builds a deterministic summary (no Gemini call on save). Returns `{ success, reportId }` |
-| `GET /api/repository/medications` | Live (auth) | Bearer JWT required. Stage 3 (I7). Rolls up `medications[]` across all of the user's reports; deduped by normalized name with per-occurrence detail (`count`, `firstSeen`, `lastSeen`, `latest` dosage/frequency, `occurrences[]`). Returns `{ success, medications }` |
-| `GET /api/repository/diagnoses` | Live (auth) | Bearer JWT required. Stage 3 (I7). Deduped diagnosis history with `latestStatus` + `occurrences[]`. Returns `{ success, diagnoses }` |
-| `GET /api/repository/symptoms` | Live (auth) | Bearer JWT required. Stage 3 (I7). Deduped symptom history with `occurrences[]`. Returns `{ success, symptoms }` |
-| `GET /api/repository/advice` | Live (auth) | Bearer JWT required. Stage 3 (I7). Rolls up `doctorAdvice[]` + `testsAdvised[]` into deduped groups tagged `kind` (`advice`/`test`) with `occurrences[]`. Returns `{ success, advice }` |
-| `GET /api/repository/timeline` | Live (auth) | Bearer JWT required. Stage 3 (I8). Computed-on-read normalized event stream (one typed event per report: `test`/`scan`/`prescription`/`consultation`/`note`/`document`), sorted newest-first, with per-event `counts`. Returns `{ success, timeline }` |
-| `GET /api/repository/summary` | Live (auth) | Bearer JWT required. Stage 3 (I7). Lightweight counts (`totalReports`, distinct medications/diagnoses/symptoms/advice, `events`). Returns `{ success, summary }` |
-| `GET /api/repository/overview` | Live (auth) | Bearer JWT required. Perf bundle for Repository UI + dashboard snapshot pills. Single MongoDB read + all rollups; returns `{ success, summary, medications, diagnoses, symptoms, advice }` |
-| `GET /api/repository/doctor-summary` | Live (auth) | Bearer JWT required. Stage 2.1. Deterministic, doctor-readable consolidated health summary computed-on-read (no Gemini). [`utils/doctorSummaryBuilder.js`](utils/doctorSummaryBuilder.js) `buildDoctorSummary()` assembles `patient` (profile + computed age/BMI), `snapshot` (counts incl. null-safe `latestReportDate`), cross-report `medications`/`diagnoses`/`symptoms`/`advice` rollups, `latestVitals` + `abnormalMarkers` (latest lab report only, each traceable via `reportId`/`reportDate`), `timelineHighlights` (newest-first, capped at 8), a deterministic `insights` subset (`buildDeterministicInsights`, `generatedBy` stripped), `disclaimer`, and `generatedAt`. Loads `User` + full report history; `404` if user missing, `500` on DB failure, `200` with empty arrays + populated patient block when no reports. No raw OCR / AI prompt text. Returns `{ success, summary }` |
-| `GET /api/repository/insights` | Live (auth) | Bearer JWT required. Stage 1.2. Longitudinal health-intelligence brief computed-on-read. Loads user profile + full report history; [`utils/longitudinalInsights.js`](utils/longitudinalInsights.js) builds deterministic metric series + latest-vs-previous lab comparison (`improving_but_still_high`/`resolved_to_normal`/etc.), then [`services/aiService.js`](services/aiService.js) `generateLongitudinalInsights()` rewords it (strict JSON, safety language, **8s timeout, no retry**). AI wording is gated by `LONGITUDINAL_AI_ENABLED="true"`; deterministic brief is computed first and used whenever AI is disabled, `<2` lab reports exist, or the call fails/times out/returns malformed JSON — always `success:true` (never 503). `404` if user missing, `500` on DB failure. Returns `{ success, insights: { summary, whatChanged[], improvingSignals[], needsAttention[], riskFlags[], doctorQuestions[], followUpSuggestions[], disclaimer, generatedBy: "ai"\|"deterministic" }, generatedAt }` |
-
-**Typical flow:** Marketing landing (`/`) → register/login → `/dashboard` upload report (`POST /api/upload`) → interpret (`POST /api/interpret`) → results dashboard with timeline scrubber, vitality chart, AI recommendation, and categorized biomarkers. Browse past reports via `/vault` (list table) → open `/dashboard?reportId=<id>`. Manual/debug: obtain token via `/api/auth/login`, then pass `Authorization: Bearer <token>` on protected routes.
-
-**Env:** `MONGODB_URI` selects the database (MongoDB Atlas SRV URI; falls back to local `mongodb://localhost:27017/healthlens` if unset — see [`config/db.js`](config/db.js)); `GEMINI_API_KEY` required for interpret + prescription Vision + document entity lane; optional `GEMINI_VISION_MODEL` pins the Vision model and optional `GEMINI_TEXT_MODEL` pins the text entity model (both default `gemini-flash-latest`; set e.g. `gemini-2.5-flash` if the alias returns 503); optional `LONGITUDINAL_AI_ENABLED="true"` enables Gemini wording for `/api/repository/insights` (deterministic-only otherwise); `JWT_SECRET` required for auth (documented in `.env.example`).
+**Commands:** `npm install` · `npm run dev` (API `:5000` + frontend `:5173`) · `npm test` · `npm run seed:demo` (see [docs/DEMO.md](docs/DEMO.md))
 
 ---
 
-## 3. Current Architecture & Pipeline
+## 3. Tech stack (as shipped)
 
-The backend strictly isolates **deterministic extraction** from **AI interpretation**. LLMs are **NEVER** used to extract numbers from raw OCR text.
+| Layer | Stack |
+|-------|-------|
+| Frontend | React, Vite, Tailwind CSS v3 (Vitality Core), lucide-react, Recharts, react-router-dom, react-to-print |
+| Backend | Node.js, Express 5 (CommonJS), port 5000 |
+| Database | MongoDB via Mongoose — `MONGODB_URI` in [`config/db.js`](config/db.js) (Atlas or local fallback) |
+| Auth | JWT (`jsonwebtoken`), bcrypt (`bcryptjs`), `protect` middleware |
+| Extraction | pdf-parse, pdfjs-dist, @napi-rs/canvas, tesseract.js, sharp |
+| AI | Google Gemini API (`@google/generative-ai`) |
+| File storage | Cloudinary (`cloudinary`) — optional; authenticated assets + signed Vault download URLs |
+| Rate limiting | express-rate-limit on auth, upload, interpret, chat |
+
+**Frontend routes:** `/`, `/login`, `/register`, `/dashboard`, `/vault`, `/repository`, `/chat`, `/profile`, `/doctor-summary`, `/privacy`, `/terms`, `/contact`, `/careers`, `/blog` — dev proxy `/api` → `localhost:5000`.
+
+---
+
+## 4. Application routes (frontend)
+
+| Route | Page | Notes |
+|-------|------|-------|
+| `/` | Landing | Public marketing |
+| `/login`, `/register` | Auth | JWT stored in `localStorage` |
+| `/dashboard` | Dashboard | Upload, report view, trends, insights |
+| `/dashboard?upload=1` | Upload mode | Skips auto-resolve to latest report |
+| `/dashboard?reportId=<id>` | Report deep-link | Timeline scrubber + Vault links |
+| `/vault` | Health Vault | Lazy-loaded report archive |
+| `/repository` | Personal Health Repository | Lazy-loaded; uses `GET /api/repository/overview` |
+| `/doctor-summary` | Doctor Summary | Lazy-loaded; print via react-to-print |
+| `/chat` | AI Assistant | Bounded context chat |
+| `/profile` | Profile | Account / Security / Health tabs |
+| `/privacy` | Privacy Policy | Public legal |
+| `/terms` | Terms of Service | Public legal |
+| `/contact` | Contact Support | Founders + team info |
+| `/careers` | Careers | Not hiring; mission + future interest |
+| `/blog` | Health Blog index | Public articles |
+| `/blog/regular-health-checkups` | Blog article | Preventive check-ups |
+
+---
+
+## 5. API reference
+
+| Endpoint | Auth | Purpose |
+|----------|------|---------|
+| `GET /health` | — | Health check |
+| `POST /api/auth/register` | — | Create user; returns JWT |
+| `POST /api/auth/login` | — | Login; returns JWT |
+| `POST /api/upload` | JWT + rate limit | Multer upload (`report`, 10MB, PDF/JPG/JPEG/PNG) + optional `documentType`. Routes to lab pipeline, prescription Vision, or text entity lane |
+| `POST /api/interpret` | JWT + rate limit | Accepts `{ structured }`; profile-aware Gemini prompt; persists Report; fallback save on AI failure |
+| `GET /api/reports/history` | JWT | User reports sorted by `reportDate`; includes `vitalityScore` virtual |
+| `GET /api/reports/:id` | JWT | Single report; `400` invalid ObjectId; `403`/`404` as appropriate |
+| `GET /api/reports/:id/file` | JWT | Signed download URL for stored original (Cloudinary); `404` when no file on record |
+| `DELETE /api/reports/:id` | JWT | Owner-scoped delete; removes Cloudinary asset when present; `400` invalid ObjectId |
+| `GET /api/users/me` | JWT | Current user + profile |
+| `PUT /api/users/profile` | JWT | Health profile fields |
+| `PUT /api/users/account` | JWT | Name / email |
+| `PUT /api/users/password` | JWT | Password change |
+| `POST /api/chat` | JWT + rate limit | Message max 1500 chars; bounded history; `503` on AI failure |
+| `POST /api/prescriptions` | JWT | Reviewed prescription save (back-compat) |
+| `POST /api/documents` | JWT | Generalized reviewed-document save |
+| `GET /api/repository/overview` | JWT | **Perf bundle** — one DB read + all rollups (Repository UI + dashboard snapshot) |
+| `GET /api/repository/medications` | JWT | Deduped medication rollups |
+| `GET /api/repository/diagnoses` | JWT | Deduped diagnosis rollups |
+| `GET /api/repository/symptoms` | JWT | Deduped symptom rollups |
+| `GET /api/repository/advice` | JWT | Doctor advice + tests advised rollups |
+| `GET /api/repository/timeline` | JWT | Computed event stream |
+| `GET /api/repository/summary` | JWT | Lightweight counts |
+| `GET /api/repository/insights` | JWT | Longitudinal brief; deterministic-first; AI gated by `LONGITUDINAL_AI_ENABLED` |
+| `GET /api/repository/doctor-summary` | JWT | Deterministic doctor-readable summary (no Gemini) |
+
+**Environment:** See [.env.example](.env.example). Key vars: `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY`, `LONGITUDINAL_AI_ENABLED`, `GEMINI_VISION_MODEL`, `GEMINI_TEXT_MODEL`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (optional — when unset, uploads extract only with no Vault download).
+
+---
+
+## 6. Extraction & AI pipeline
+
+The backend strictly isolates **deterministic extraction** from **AI interpretation**. LLMs are **never** used to extract numbers from raw OCR text.
 
 ```mermaid
 flowchart TD
@@ -94,154 +133,49 @@ flowchart TD
   sections --> filter[filterClinicalData]
   filter --> structured[structured_JSON]
   structured --> interpret[POST_api_interpret]
-  interpret --> aiPrompt[aiPrompt_text]
-  aiPrompt --> aiService[aiService]
-  aiService --> gemini[gemini-1.5-flash]
-  gemini --> data[summary_findings_recommendations]
-  data --> reportSave[Report.save]
-  reportSave --> reportId[reportId]
+  interpret --> aiService[aiService]
+  aiService --> gemini[Gemini]
+  gemini --> reportSave[Report.save]
 ```
 
-**Pipeline steps:**
-1. **Upload:** [`routes/upload.js`](routes/upload.js) — PDF/JPG/JPEG/PNG via Multer
-2. **Raw extraction:** [`services/extractionService.js`](services/extractionService.js) → [`pdfService.js`](services/pdfService.js) (digital) or [`ocrService.js`](services/ocrService.js) (scanned/images)
-3. **Full cleanup:** [`utils/textCleanup.js`](utils/textCleanup.js)
-4. **Row stitching:** [`utils/rowStitcher.js`](utils/rowStitcher.js) — multi-line table rows
-5. **Section scoping:** [`services/sectionExtractor.js`](services/sectionExtractor.js) — CBC, LIPID, KIDNEY, etc.
-6. **Clinical extraction:** [`utils/clinical/parameterRegexMap.js`](utils/clinical/parameterRegexMap.js) — **Universal Range-Stripping Pattern** + **label masking** (`maskLabels`) on 38 canonical parameters from [`utils/canonicalMap.json`](utils/canonicalMap.json)
-7. **Enrichment:** [`services/clinicalFilterService.js`](services/clinicalFilterService.js) — units, status (low/normal/high), validation, dedupe, flags, OCR traceability
-8. **Metadata:** [`utils/clinical/metadataPrepass.js`](utils/clinical/metadataPrepass.js) — **date only** (`patient_info.reportDate`); name/age/gender deferred to future auth profile
-9. **AI prompt:** [`utils/aiContextGenerator.js`](utils/aiContextGenerator.js) — `MEDICAL REPORT CONTEXT` string (token-efficient for LLM)
-10. **AI interpretation:** [`services/aiService.js`](services/aiService.js) — Gemini 1.5 Flash with strict `responseSchema` JSON output
-11. **Persistence:** [`routes/interpret.js`](routes/interpret.js) — maps measurements, saves Report document, returns `reportId`
+**Lab pipeline steps:**
 
-**Extraction method on measurements:** `generalized_stripper`
+1. Upload — [`routes/upload.js`](routes/upload.js)
+2. Raw extraction — [`services/extractionService.js`](services/extractionService.js)
+3. Cleanup, stitch, section — [`utils/textCleanup.js`](utils/textCleanup.js), [`utils/rowStitcher.js`](utils/rowStitcher.js), [`services/sectionExtractor.js`](services/sectionExtractor.js)
+4. Clinical extraction — [`utils/clinical/parameterRegexMap.js`](utils/clinical/parameterRegexMap.js) + [`utils/canonicalMap.json`](utils/canonicalMap.json)
+5. Enrichment — [`services/clinicalFilterService.js`](services/clinicalFilterService.js)
+6. AI interpret — [`services/aiService.js`](services/aiService.js) via [`routes/interpret.js`](routes/interpret.js)
 
-**Document routing (Stage 1 + 2a + 2b):** [`services/extractionService.js`](services/extractionService.js) resolves `documentType` from an explicit upload hint (the UI selector) or, on `auto`, from `classifyDocumentType()` ([`services/reportClassifier.js`](services/reportClassifier.js)) over the cleaned text (`lab_report` | `prescription` | `scan_report` | `discharge_summary` | `typed_note` | `unknown`; deterministic keyword scoring with word-boundary guards). The `switch` now has **three lanes**: `prescription` → **Gemini Vision lane**; `scan_report`/`discharge_summary`/`typed_note`/`unknown` → **text entity lane** (Stage 2b catch-all); `lab_report` (and default) → deterministic lab pipeline. `documentType` is orthogonal to the lab-panel `reportType` (CBC/LIPID/...).
+**Document routing (three lanes):**
 
-**Document entity lane (Stage 2b — I4):** [`services/documentEntityService.js`](services/documentEntityService.js) sends the already-extracted cleaned text (no image, no re-OCR) to `extractEntitiesFromText()` in [`services/aiService.js`](services/aiService.js) — a Gemini **text** model with a strict JSON schema (`medications[]`, `diagnoses[]`, `symptoms[]`, `doctorAdvice[]`, `testsAdvised[]`, per-field `confidence`/`uncertain`). Numbers/vitals are NEVER extracted here (deterministic lane only). Medications are validated against the drug dictionary (`annotateMedications`, reused from the prescription lane), `reportType` is derived from `documentType`, and the user reviews/edits in the same mandatory confirmation screen before `POST /api/documents` persists the record.
+| Lane | Types | Handler |
+|------|-------|---------|
+| Lab | `lab_report` (default) | Deterministic regex pipeline |
+| Prescription | `prescription` | Gemini Vision — [`services/prescriptionService.js`](services/prescriptionService.js) |
+| Entity | `scan_report`, `discharge_summary`, `typed_note`, `unknown` | Gemini text — [`services/documentEntityService.js`](services/documentEntityService.js) |
 
-**Prescription Vision lane (Stage 2a — I3/I6):** [`services/prescriptionService.js`](services/prescriptionService.js) loads the image (or PDF page 0), applies gentle `sharp` prep (rotate/upscale only — no grayscale/sharpen), and sends it directly to Gemini Vision via `extractPrescriptionFromImage()` in [`services/aiService.js`](services/aiService.js) (strict JSON schema: `medications[]`, `diagnoses[]`, `doctorAdvice[]`, `testsAdvised[]`, per-field `confidence`/`uncertain`). Extracted drug names are validated against [`utils/clinical/drugDictionary.js`](utils/clinical/drugDictionary.js) (`validateDrugName`, Levenshtein fuzzy match) which flags (never blocks) unknowns as `uncertain` with a suggestion. The user reviews/edits in a mandatory confirmation screen before `POST /api/prescriptions` persists the record. Numbers are NEVER extracted via the LLM. Multi-page PDF prescriptions are a known 2a constraint (page 0 only).
+User reviews extracted entities before save (`ReviewExtraction` → `POST /api/documents` or `/api/prescriptions`).
 
 ---
 
-## 4. What's Done vs. In Progress
+## 7. Data model (summary)
 
-### DONE (Day 1 & Day 2)
+### User ([`models/User.js`](models/User.js))
 
-- **Plans 1–4:** Extraction MVP, clinical filtering, enrichment delta, section stitching
-- **Plan 5:** Parser precision hardening — **rolled back**
-- **CBC.pdf fixes:** Full lines into stitcher; haemogram header; Indian ref-before-value tables
-- **Universal parser:** Range-stripping + longest-alias-wins + exclusion guards (Hb/HbA1c, RBC/RDW, bilirubin direct)
-- **Stripper hotfix:** Label masking for B12 / 25-OH Vitamin D; `Customer Since: 25/Apr/2026` date support
-- **Interpret endpoint (prompt-only):** [`routes/interpret.js`](routes/interpret.js) mounted in [`server.js`](server.js)
-- **Metadata:** Date-only extraction (no name/age/gender in API)
-- **AI context generator:** Structured JSON → optimized prompt text
-- **Testing UI:** [`index.html`](index.html) — visual upload tester
-- **AI Interpretation Layer:** [`services/aiService.js`](services/aiService.js) — Gemini 1.5 Flash, strict JSON schema (`summary`, `findings`, `recommendations`)
-- **Interpret endpoint (live):** `/api/interpret` returns `{ success, aiPrompt, data, reportId }`
-- **MongoDB persistence:** [`config/db.js`](config/db.js) + [`models/Report.js`](models/Report.js); measurements + `aiInterpretation` saved on each interpret
-- **Env:** `GEMINI_API_KEY` in `.env.example`; local MongoDB required for `npm run dev`
-- **Vitality score:** `vitalityScore` virtual on [`models/Report.js`](models/Report.js) — base 100, −5 per `low`/`high` measurement
-- **Report history:** [`routes/reports.js`](routes/reports.js) — `GET /api/reports/history`
-- **JWT auth backend:** [`models/User.js`](models/User.js) (bcrypt pre-save hook, `matchPassword`); [`routes/auth.js`](routes/auth.js) — register/login; [`middleware/authMiddleware.js`](middleware/authMiddleware.js) — `protect` on upload/interpret/history; Report `userId` ObjectId ref to User
-- **React auth UI:** separate [`pages/Login.jsx`](client/src/pages/Login.jsx) and [`pages/Register.jsx`](client/src/pages/Register.jsx); JWT helpers + Bearer headers in [`client/src/lib/api.js`](client/src/lib/api.js); `ProtectedRoute` in [`client/src/App.jsx`](client/src/App.jsx) checks localStorage token
-- **React Router:** [`client/src/App.jsx`](client/src/App.jsx) — `BrowserRouter`, routes `/`, `/login`, `/register`, `/dashboard`, `/vault`, `/profile`; sticky [`Navbar`](client/src/components/Layout/Navbar.jsx) with auth-aware links
-- **Tests:** **43/43 passing**
+- `name`, `email`, `password` (bcrypt-hashed)
+- Nested `profile`: DOB, gender, blood group, height/weight, chronic conditions, lifestyle
 
-### DONE (Day 4 — core UI)
+### Report ([`models/Report.js`](models/Report.js))
 
-- **React scaffold:** [`client/`](client/) Vitality Core design system (Tailwind v3, Inter, `glass-card`, `shadow-ambient`)
-- **Upload flow:** [`pages/Dashboard.jsx`](client/src/pages/Dashboard.jsx) — `UploadZone` → `ProcessingView` → `components/Dashboard/Dashboard` state machine; loads full report history on mount; selects report via `?reportId=` or latest; horizontal `TimelineSelector` scrubber for switching reports
-- **API wiring:** login/register pages + chained `/api/upload` + `/api/interpret` with Bearer JWT via [`client/src/lib/api.js`](client/src/lib/api.js)
-- **Dashboard:** `TimelineSelector` card-wrapped scrubber, `HealthTimelineCard` (8-col vitality trend), `AIRecommendationCard` (4-col glass/gradient), `BiomarkerGrid`, **Download PDF** via `react-to-print` on [`Dashboard.jsx`](client/src/components/Dashboard/Dashboard.jsx)
-- **Landing:** [`pages/Landing.jsx`](client/src/pages/Landing.jsx) — high-fidelity Vitality Core prototype (Hero + dashboard preview, Bento features, How It Works, Social Impact, Footer); scroll-reveal animations; Manrope + extended design tokens
-- **Navbar:** [`Navbar.jsx`](client/src/components/Layout/Navbar.jsx) — 3-column state-aware nav (public anchor links vs Dashboard/Vault/Assistant; Profile icon + Logout)
-- **Profile:** [`pages/Profile.jsx`](client/src/pages/Profile.jsx) — medical intake form (demographics, biometrics/BMI, lifestyle, chronic conditions); `GET /api/users/me` + `PUT /api/users/profile`
-- **AI profile context:** [`utils/profileContextBuilder.js`](utils/profileContextBuilder.js) — age/BMI calculation; profile string prepended to Gemini prompt at interpret time
+- `userId` (ObjectId ref), `reportDate`, `reportType`, `documentType`
+- `measurements[]` — lab biomarkers with status, units, reference ranges
+- `medications[]`, `diagnoses[]`, `symptoms[]`, `doctorAdvice[]`, `testsAdvised[]`
+- `aiInterpretation` — `{ summary, findings, recommendations }`
+- `provenance` — filename, extraction method, confidence; optional Cloudinary refs (`cloudinaryPublicId`, `cloudinaryResourceType`, `mimeType`, `bytes`) when storage is enabled
+- `vitalityScore` virtual — weighted deduction from abnormal measurements
 
-### DONE (Day 5 — Health Vault + Timeline)
-
-- **Report by ID API:** [`routes/reports.js`](routes/reports.js) — `GET /api/reports/:id` with owner check (403 Forbidden on mismatch)
-- **Health Vault:** [`pages/Vault.jsx`](client/src/pages/Vault.jsx) — prototype card archive (bento stats, search/sort, Stable vs Attention Needed cards); live `fetchReportHistory()`; links to `/dashboard?reportId=<id>`
-- **Shared Footer:** [`components/Layout/Footer.jsx`](client/src/components/Layout/Footer.jsx) — extracted from Landing; rendered on Landing + globally on authenticated routes via [`App.jsx`](client/src/App.jsx)
-- **Timeline selector:** [`TimelineSelector.jsx`](client/src/components/Dashboard/TimelineSelector.jsx) — horizontal report scrubber on Dashboard; URL-synced via `?reportId=`; history-driven selection from `fetchReportHistory()`
-- **Dashboard deep-link:** [`pages/Dashboard.jsx`](client/src/pages/Dashboard.jsx) + [`client/src/lib/structured.js`](client/src/lib/structured.js) `reportToDashboardPayload()` (includes `_id`)
-- **AI Assistant:** [`pages/Chat.jsx`](client/src/pages/Chat.jsx) — live chat UI wired to `POST /api/chat`; static welcome message; `messages` state + `isTyping` indicator; `sendChatMessage(message)`; protected `/chat` route; Navbar **Assistant** link; Footer hidden on `/chat`
-- **Auth UI prototype:** [`pages/Login.jsx`](client/src/pages/Login.jsx) + [`pages/Register.jsx`](client/src/pages/Register.jsx) — split-screen layout; [`AuthBrandPanel.jsx`](client/src/components/Auth/AuthBrandPanel.jsx) with brand `Link to="/"`; [`AuthBackHome.jsx`](client/src/components/Auth/AuthBackHome.jsx); Navbar hidden on `/login`/`/register`; `bg-medical-gradient` in [`index.css`](client/src/index.css)
-- **Chat backend:** [`routes/chat.js`](routes/chat.js) + `generateChatResponse(userMessage, userProfile, userHistory)` in [`services/aiService.js`](services/aiService.js) — profile + bounded report history JSON in Gemini system prompt (last 10 reports, abnormal measurements + capped normals)
-- **AI token protection (Stage 4.2):** [`middleware/rateLimiters.js`](middleware/rateLimiters.js) — `express-rate-limit` on `/api` (standard), `/api/auth`, `/api/upload`, `/api/interpret`, `/api/chat`; user-keyed after auth. [`services/aiService.js`](services/aiService.js) — timeout wrapper + single retry on transient Gemini errors. Interpret saves deterministic data with fallback when AI unavailable; chat/upload return friendly `503`/`429` messages; frontend duplicate-upload guards + `aiUnavailable` banner
-- **Demo patient seed (Stage 4.3):** [`scripts/seedDemoPatient.js`](scripts/seedDemoPatient.js) + [`scripts/demoPatientData.js`](scripts/demoPatientData.js) — idempotent `npm run seed:demo` creates **Priya Sharma** (`demo@healthlens.ai` / `DemoHealth2026!`) with 4 reports (Jan baseline → Mar worsening → Mar prescription → Jun improvement); no Gemini; scoped `deleteMany` + reinsert. Evaluation guide: [`docs/DEMO.md`](docs/DEMO.md)
-
-### TO DO (Day 4 polish + Days 5–6)
-
-- **Day 4 remaining:** Findings display, reset/new-report action (demo dataset done via seed)
-- **Day 5 remaining:** Risk detection, per-biomarker trend lines
-- **Day 6:** Production polish — error handling, branding (PDF export: dashboard print-to-PDF done)
-
----
-
-## 5. Milestone history (backend plans)
-
-| Plan | Status | Summary |
-|------|--------|---------|
-| Plan 1 — Extraction MVP | Done | Upload → PDF/OCR → cleanup → JSON |
-| Plan 2 — Clinical filtering | Done | cleanedTextClinical, structured.measurements |
-| Plan 3 — Enrichment delta | Done | Canonical IDs, units, validation, flags, traceability |
-| Plan 4 — Section stitching | Done | Row stitcher, section blocks, scoped regex |
-| Plan 5 — Parser precision | Rolled back | Too complex / new bugs |
-| CBC parsing fixes | Done | Orchestration order, haemogram, ref-before-value |
-| Range-stripping universal parser | Done | canonicalMap-driven extractor |
-| Stripper hotfix + interpret API | Done | B12/25-OH/date fixes; separate interpret route |
-| Gemini AI interpretation | Done | aiService + live `/api/interpret` with schema-enforced JSON |
-| MongoDB report persistence | Done | Mongoose Report model; interpret saves measurements + AI payload; returns `reportId` |
-| Vitality score + history API | Done | `vitalityScore` virtual; `GET /api/reports/history` sorted by reportDate |
-| JWT auth backend | Done | User model, register/login routes, `protect` middleware; `JWT_SECRET` in `.env.example` |
-| Secure user-scoped routes | Done | `protect` on upload/interpret/history; Report `userId` ObjectId ref; React auth gate + JWT headers |
-| Dashboard PDF export | Done | `react-to-print` action bar on Dashboard; print grid to browser PDF (`HealthLens_AI_Report`) |
-| React Router + pages | Done | `react-router-dom`; Landing/Login/Register/Dashboard/Profile pages; `ProtectedRoute`; global Navbar; BiomarkerGrid category grouping |
-| User profile + AI context | Done | User `profile` schema; `GET /api/users/me` + `PUT /api/users/profile`; Profile intake form; profile injected into Gemini interpret prompt |
-| Health Vault + report deep-link | Done | `GET /api/reports/:id`; Vault list archive; Dashboard `?reportId=` load; Navbar Vault link |
-| Timeline selector scrubber | Done | `TimelineSelector` horizontal pills; history state on Dashboard; URL sync via `setSearchParams` |
-| Vitality Core UI polish | Done | Smart Navbar; full Landing page; Dashboard 8/4 grid with `AIRecommendationCard`; design token alignment |
-| Vault prototype UI + shared Footer | Done | `Vault.jsx` card archive from HTML mockup; lucide icons; `Footer.jsx` shared; `App.jsx` global footer on auth routes |
-| Chat Assistant UI prototype | Done | `Chat.jsx` from HTML mockup; `/chat` protected route; Navbar Assistant link; `chat-scroll` CSS |
-| Auth UI prototype + chat API | Done | Split Login/Register; back-to-home links; `POST /api/chat` with vault context; live Chat UI |
-| Stage 1 — Data model + routing | Done | `documentType` enum + entity sub-schemas; `classifyDocumentType()`; routing seam |
-| Stage 2a — Prescription Vision lane | Done | Gemini Vision `extractPrescriptionFromImage`; `prescriptionService`; drug dictionary; upload doc-type hint; review-then-save; `POST /api/prescriptions` |
-| Stage 2b — Entity lane + generalized review | Done | Text-based `extractEntitiesFromText`; `documentEntityService` catch-all lane (scan/discharge/typed/unknown); generalized review UI (symptoms) + `DocumentEntitiesCard`; `POST /api/documents` generalized save |
-| Stage 3 — Personal Health Repository (I7 + I8) | Done | `repositoryAggregator` cross-report rollups (deduped + occurrences); `timelineBuilder` computed-on-read event stream; `GET /api/repository/*` endpoints; frontend api stubs |
-| Stage 4 — Health Dashboard (I9 + I10 + I11 + I13) | Done | Premium slate/teal Dashboard: `VitalitySnapshotCard` (radial ring + stats), `MiniCalendarCard` (custom month + recent records), `NeedsAttentionCard` (abnormal + delta vs prior), `TrendAnalyticsCard`, `AIInsightsBanner`, panel-categorized `BiomarkerGrid`; `lib/trends.js`/`canonicalCategories.js`; weighted `vitalityScore`. Standalone FullCalendar `/timeline` page retired in refinement pass |
-| Stage 4.1–4.2 — AI token protection | Done | Baseline verification; `express-rate-limit` middleware; Gemini timeout + single retry; interpret fallback save; bounded chat context (`buildBoundedChatHistory`); upload/chat/interpret graceful failures; frontend error guards |
-| Stage 4.3 — Demo patient seed | Done | `scripts/demoPatientData.js` + `seedDemoPatient.js`; `npm run seed:demo`; 4-report Priya Sharma narrative; `tests/demoPatientData.test.js`; [`docs/DEMO.md`](docs/DEMO.md) evaluation script |
-| Stage 1.2 — Longitudinal insights | Done | `utils/longitudinalInsights.js`; `generateLongitudinalInsights` (8s timeout, no retry, env-gated); `GET /api/repository/insights` deterministic-first; flagship `LongitudinalInsightsCard`; client-side cache |
-| Stage 2.1 — Doctor Summary data builder | Done | `utils/doctorSummaryBuilder.js` consolidated contract; deterministic (no Gemini); traceable vitals/abnormal markers; `GET /api/repository/doctor-summary`; `tests/doctorSummaryBuilder.test.js` + repository route tests; backend only (UI is Stage 2.2) |
-| Stage 2.2 — Doctor Summary UI / export | Done | Protected lazy `/doctor-summary` page (`DoctorSummary.jsx`) consuming the Stage 2.1 contract via `fetchDoctorSummary()`; doctor-readable print layout (no charts) + `react-to-print`; whole-history entry buttons on Dashboard (Export Report → Export Current Report) and Vault; frontend only; client build green |
-| Stage 2.3 — Personal Health Repository UI | Done | Protected lazy `/repository` page (`Repository.jsx`) consuming Stage 3 rollups via `fetchRepositorySummary`/`fetchMedicationHistory`/`fetchDiagnosisHistory`/`fetchSymptomHistory`/`fetchAdviceHistory` (single `Promise.all`, page-level fail-clean error); summary stat strip + medication/diagnosis/symptom tables + grouped Doctor Advice/Tests Advised, per-section empty copy, uncertain badges, first/last-seen provenance; Navbar Repository link (Vault↔Assistant); frontend only; client build green |
-
----
-
-## 6. Known bugs & quirks
-
-- **Legacy reports:** Pre-auth documents with `userId: "anonymous_patient"` string will not appear in scoped history queries; drop or migrate local `reports` collection if needed
-- **Manual upload tester:** [`index.html`](index.html) does not send Bearer token — use React client or curl with auth header
-- **OCR label overlap:** Labels blend with values (e.g. "Vitamin B12 515", "25-OH Vitamin D 11")
-  - *Mitigation:* `maskLabels()` masks canonical aliases before value extraction
-- **Missing minor decimals:** OCR may parse `1.18` as `118` in dense tables
-  - *Status:* Accepted quirk; AI layer expected to contextualize via reference ranges
-- **Digital traceability:** `pdf-parse` has no bounding boxes — `sourceBBox`/`sourcePage` null; `confidenceSource: "text_only"`
-- **Footer false CBC section:** `"CBC DONE ON..."` can spawn duplicate short CBC block
-- **Lakh/cumm:** Value extracts; unit not in normalizer
-- **Plan 4 edge cases (open):** Bilirubin total/direct, platelets/MPV, eGFR ref leakage, T3/T4 false positives
-
----
-
-## 7. Test status
-
-- **Unit tests:** **191/191 passing** (`npm test`)
-- **Coverage includes:** row stitcher, section extractor, generalized stripper, metadata prepass, interpret handler (incl. AI fallback save), profileContextBuilder, users route handlers, **weighted vitalityScore virtual + vitalityScore helper**, reports history handler, reports getById handler, aiContextGenerator, aiService (interpret + chat + **prescription Vision** + **text entity extraction** + **longitudinal insights** + timeout/retry helpers), chatContextBuilder (incl. `buildBoundedChatHistory`), chat route handler (incl. message length + bounded history), **rate limiters**, **demo patient data validation (`demoPatientData.test.js`)**, **drug dictionary, prescription service annotation, prescription save route, document entity service, generalized document save route, repository aggregator, timeline builder, longitudinal insights, repository route handlers (incl. insights + doctor-summary), doctor summary builder (`doctorSummaryBuilder.test.js`)**, CBC PDF fixture, integration extraction, validation, traceability, unit normalizer
-- **Frontend:** no test harness yet; Trend Analytics logic kept in pure `client/src/lib/trends.js`; verified via `npm run build` (Stage 4)
-- **Golden layouts:** `CBC.pdf` (9/9 core CBC measurements), `reports.pdf` (vitamins, lipids, etc.)
+Repository rollups are **computed on read** (no separate collection) via [`utils/repositoryAggregator.js`](utils/repositoryAggregator.js) and [`utils/timelineBuilder.js`](utils/timelineBuilder.js).
 
 ---
 
@@ -249,79 +183,81 @@ flowchart TD
 
 | Area | Files |
 |------|-------|
-| Entry | `server.js`, `routes/upload.js`, `routes/interpret.js`, `routes/prescription.js`, `routes/document.js`, `routes/reports.js`, `routes/repository.js`, `routes/chat.js`, `routes/auth.js`, `routes/users.js` |
-| Health repository (Stage 3) | `routes/repository.js`, `utils/repositoryAggregator.js`, `utils/timelineBuilder.js` |
-| Health dashboard (Stage 4) | `client/src/components/Dashboard/VitalitySnapshotCard.jsx`, `VitalityRing.jsx`, `MiniCalendarCard.jsx`, `NeedsAttentionCard.jsx`, `AIInsightsBanner.jsx`, `TrendAnalyticsCard.jsx`, `client/src/lib/trends.js`, `client/src/lib/biomarkerIntelligence.js`, `client/src/lib/canonicalCategories.js`, `utils/clinical/vitalityScore.js` |
-| Database | `config/db.js`, `models/Report.js`, `models/User.js` |
-| Demo seed (Stage 4.3) | `scripts/seedDemoPatient.js`, `scripts/demoPatientData.js`, `docs/DEMO.md` |
-| Auth | `middleware/authMiddleware.js` (`protect`), `middleware/rateLimiters.js`, `utils/formatUser.js` |
-| Profile / AI context | `utils/profileContextBuilder.js`, `utils/chatContextBuilder.js`, `routes/users.js`, `routes/chat.js` |
-| Orchestration | `services/extractionService.js` |
-| Clinical pipeline | `services/clinicalFilterService.js` |
-| Prescription lane | `services/prescriptionService.js`, `utils/clinical/drugDictionary.js`, `services/aiService.js` (`extractPrescriptionFromImage`) |
-| Document entity lane | `services/documentEntityService.js`, `services/aiService.js` (`extractEntitiesFromText`), `routes/document.js` |
-| Sectioning | `services/sectionExtractor.js`, `utils/rowStitcher.js` |
-| Extractor | `utils/clinical/parameterRegexMap.js`, `utils/canonicalMap.json` |
-| Metadata | `utils/clinical/metadataPrepass.js` |
-| AI prep | `utils/aiContextGenerator.js` |
-| AI interpretation | `services/aiService.js` |
-| Enrichment | `unitNormalizer.js`, `validationSanityEngine.js`, `reportClassifier.js`, `clinicalFlags.js`, `traceability.js` |
-| Manual UI | `index.html` |
-| React frontend | `client/src/App.jsx` (router shell + conditional Navbar/Footer; lazy `/vault` + `/repository` + `/doctor-summary`), `client/src/pages/` (Landing, Login, Register, Dashboard, Vault, Repository, Chat, Profile, DoctorSummary), `client/src/components/Auth/` (`AuthBrandPanel`, `AuthBackHome`), `client/src/lib/api.js`, `client/src/lib/structured.js`, `client/src/lib/trends.js`, `client/src/components/Layout/Navbar.jsx`, `client/src/components/Layout/Footer.jsx`, `client/src/components/UploadZone.jsx` (doc-type selector), `client/src/components/ProcessingView.jsx`, `client/src/components/ReviewExtraction.jsx` (generalized document confirmation incl. symptoms), `client/src/components/Dashboard/` (`VitalitySnapshotCard`, `VitalityRing`, `MiniCalendarCard`, `NeedsAttentionCard`, `AIInsightsBanner`, `TimelineSelector`, `HealthTimelineCard`, `AIRecommendationCard`, `AISummaryCard`, `BiomarkerGrid`, `DocumentEntitiesCard`, `TrendAnalyticsCard`) |
+| Entry | `server.js`, `routes/*.js`, `config/db.js` |
+| Auth | `middleware/authMiddleware.js`, `middleware/rateLimiters.js`, `routes/auth.js` |
+| Extraction | `services/extractionService.js`, `services/clinicalFilterService.js`, `utils/clinical/` |
+| AI | `services/aiService.js`, `utils/aiContextGenerator.js`, `utils/profileContextBuilder.js`, `utils/chatContextBuilder.js` |
+| Repository | `routes/repository.js`, `utils/repositoryAggregator.js`, `utils/timelineBuilder.js`, `utils/longitudinalInsights.js`, `utils/doctorSummaryBuilder.js` |
+| File storage | `config/cloudinary.js`, `services/cloudinaryService.js` |
+| Demo | `scripts/seedDemoPatient.js`, `scripts/demoPatientData.js`, `scripts/qaStage31.mjs` |
+| Frontend shell | `client/src/App.jsx`, `client/src/lib/api.js`, `client/src/pages/` |
+| Dashboard UI | `client/src/components/Dashboard/` |
+| Layout | `client/src/components/Layout/Navbar.jsx`, `Footer.jsx` |
 
 ---
 
-## 9. Changelog (recent)
+## 9. Known limitations
 
-- **2026-06-10:** Stage 3.3 — evaluation demo guide rewrite. [`docs/DEMO.md`](docs/DEMO.md) updated for Atlas prereqs, `LONGITUDINAL_AI_ENABLED=false`, Navbar Upload act, Repository + Doctor Summary acts, fixed ~5-min eval script, `qaStage31.mjs` smoke + re-seed note, freeze guidance. Stage 3.2 complete (zero Tier 2 polish; `qaStage31.mjs` 32/32 pass, P0/P1 clear).
-- **2026-06-10:** Stage 3.2 — malformed report id validation. `GET`/`DELETE /api/reports/:id` now return `400 Invalid report id.` when `:id` fails `mongoose.isValidObjectId` (avoids Mongoose CastError → 500). Tests in [`tests/reportsRoute.test.js`](tests/reportsRoute.test.js); [`scripts/qaStage31.mjs`](scripts/qaStage31.mjs) J1 check expects 400. 191 tests.
-- **2026-06-10:** Profile + account management + report delete. **Profile UI:** [`Profile.jsx`](client/src/pages/Profile.jsx) rebuilt as a professional tabbed page (Account / Security / Health Profile) with avatar header, name + email editing, password change (current + new + confirm), and the existing medical intake form preserved on the Health tab. **Backend:** `PUT /api/users/account` (name/email with uniqueness guard) and `PUT /api/users/password` (current-password verification, min 8 chars) in [`routes/users.js`](routes/users.js); `DELETE /api/reports/:id` owner-scoped delete in [`routes/reports.js`](routes/reports.js). **Vault:** per-record trash button with confirm dialog; deletes clear repository overview + insights caches. Client helpers: `updateUserAccount`, `changeUserPassword`, `deleteReport` in [`api.js`](client/src/lib/api.js). 189 tests; client build green.
-- **2026-06-10:** Repository perf — consolidated `GET /api/repository/overview` (one MongoDB read + one rollup pass) replaces five parallel repository fetches on [`Repository.jsx`](client/src/pages/Repository.jsx); [`VitalitySnapshotCard.jsx`](client/src/components/Dashboard/VitalitySnapshotCard.jsx) reuses the same bundle via in-memory `fetchRepositoryOverview()` cache (cleared on auth change + after upload/save). Repository rollups use `.lean()` queries. Individual `/medications` etc. endpoints unchanged for compatibility. 181 tests.
-- **2026-06-10:** Post-2.3 polish + upload-entry fix (frontend only). **Bugfix:** once a user had reports, `/dashboard` always auto-resolved to the latest report and the upload zone was unreachable (any "upload" link just landed on the dashboard). [`Dashboard.jsx`](client/src/pages/Dashboard.jsx) now has a URL-driven upload mode (`?upload=1`): the resolve effect skips while in upload mode, `handleStartUpload`/`handleExitUpload` toggle the param, and a new `Upload Report` header button (in [`components/Dashboard/Dashboard.jsx`](client/src/components/Dashboard/Dashboard.jsx), now the primary CTA) plus an optional "Back to dashboard" affordance on [`UploadZone.jsx`](client/src/components/UploadZone.jsx) (`onCancel`) make uploading reachable with existing history. **Navbar redesign:** [`Navbar.jsx`](client/src/components/Layout/Navbar.jsx) rebuilt as a modern white/blur glass header — centered pill nav with active-route highlighting (`useLocation`), lucide icons per link, a primary `Upload` CTA (`/dashboard?upload=1`, the global upload entry point), profile avatar + logout icon buttons, and a responsive mobile hamburger menu. **Minor:** Repository diagnosis `StatusBadge` dropped the unused `chronic` style (backend enum is `active`/`resolved`/`unknown`); Vault stat relabeled `N Conditions` / "Chronic vitals tracked" → `N Flagged` / "Reports needing attention". Client build green; backend unchanged (180 tests).
-- **2026-06-10:** Stage 2.3 — Personal Health Repository UI (frontend only; no backend change). New protected, lazy-loaded [`client/src/pages/Repository.jsx`](client/src/pages/Repository.jsx) at `/repository` makes the structured longitudinal "health memory" visible (Vault stays the document archive). Single page-level `useEffect` + `Promise.all` over the existing Stage 3 stubs (`fetchRepositorySummary`, `fetchMedicationHistory`, `fetchDiagnosisHistory`, `fetchSymptomHistory`, `fetchAdviceHistory`); any failure renders one clean full-page error (fail-the-page, acceptable per scope). Header + explanatory line; 6-stat summary strip (reports / medications / diagnoses / symptoms / advice-tests / timeline events from `summary.events`); medication, diagnosis (status badge), and symptom tables (each with first/last-seen provenance, count, amber "Uncertain" badge); Doctor Advice & Tests split into two clearly labeled sub-blocks via `kind`. Per-section empty copy ("No medications found yet." etc.). Slate/teal styling helpers replicated locally (no shared abstraction). `/repository` added as protected `Suspense` route in [`App.jsx`](client/src/App.jsx) (keeps Navbar + global footer); new Navbar link between Vault and Assistant ([`Navbar.jsx`](client/src/components/Layout/Navbar.jsx)). Client build green; backend unchanged (180 tests).
-- **2026-06-10:** Stage 2.2 — Printable Doctor Summary UI / export (frontend only; no backend change). New protected, lazy-loaded [`client/src/pages/DoctorSummary.jsx`](client/src/pages/DoctorSummary.jsx) at `/doctor-summary` consumes the Stage 2.1 `GET /api/repository/doctor-summary` contract via new `fetchDoctorSummary()` in [`client/src/lib/api.js`](client/src/lib/api.js). Doctor-readable, mostly black/white + light-teal layout (no charts) with small local components (`Section`/`InfoGrid`/`EmptyState`/`StatusBadge`/`SummaryTable`/`ListBlock`): header ("Prepared for clinical discussion, not diagnosis." + disclaimer), patient profile, health snapshot, medications, diagnoses & symptoms, advice & tests advised, latest vitals, abnormal markers (status-colored badges high/low/normal/unknown), timeline highlights, and the longitudinal Health Intelligence Brief. Loading/error states; null-safe `—` date helpers; per-section empty states so an empty-history patient still prints; `react-to-print` (`documentTitle: HealthLens_Doctor_Summary`) prints only the `contentRef` subtree (action bars `print:hidden`, outside the ref). Entry points: whole-history `Doctor Summary` buttons on [`Dashboard.jsx`](client/src/components/Dashboard/Dashboard.jsx) (existing print renamed to **Export Current Report**) and [`Vault.jsx`](client/src/pages/Vault.jsx) action row; `/doctor-summary` added to `hideGlobalFooter` in [`App.jsx`](client/src/App.jsx). Client build green; backend unchanged (180 tests).
-- **2026-06-10:** Stage 2.1 — Doctor Summary data builder + endpoint (backend only). New [`utils/doctorSummaryBuilder.js`](utils/doctorSummaryBuilder.js) (`buildDoctorSummary`/`buildPatientBlock`/`buildLatestVitals`/`buildAbnormalMarkers`/`buildTimelineHighlights`) consolidates structured data into one doctor-readable contract: patient block (computed age/BMI via injectable `referenceDate`), deterministic `snapshot` (null-safe `latestReportDate`, never `Invalid Date`), reused cross-report rollups, latest-lab `latestVitals` + `abnormalMarkers` (traceable `reportId`/`reportDate`), 8-capped `timelineHighlights`, and a `generatedBy`-stripped deterministic `insights` subset. New `doctorSummaryHandler` + `GET /api/repository/doctor-summary` in [`routes/repository.js`](routes/repository.js) (loads `User` + reports; `404`/`500` guards; `200` + empty arrays for no reports; deps-injected `buildInsights`/`buildSummary`). No Gemini, no raw OCR/prompt text, no frontend yet (Stage 2.2). New [`tests/doctorSummaryBuilder.test.js`](tests/doctorSummaryBuilder.test.js) + extended [`tests/repositoryRoute.test.js`](tests/repositoryRoute.test.js). 180 tests (was 167).
-- **2026-06-10:** Stage 1.2 — insights now cached client-side to stop wasting API tokens. `/api/repository/insights` was being hit on every dashboard open/reload; [`client/src/lib/api.js`](client/src/lib/api.js) now caches the response in `localStorage` (`getCachedInsights`/`setCachedInsights`/`clearCachedInsights`, cleared on `setAuthToken`/`clearAuthToken`). [`Dashboard.jsx`](client/src/pages/Dashboard.jsx) `loadInsights(reports, { force })` reuses the cache on mount/reload and only re-fetches on login (cache reset), after a new upload/reviewed save (`force: true`), or when the cache is stale. The cache is keyed by a history signature (`_id:reportDate:measurements#:medications#` per report), so a re-seed / cross-tab Atlas edit / new report invalidates it even while the auth token persists.
-- **2026-06-10:** Stage 1.2 hardening — fast, fail-soft AI. Longitudinal AI timeout cut to 8s and retry removed (single `withTimeout`, no `callWithSingleRetry`) so a slow/down Gemini can no longer stall the card (~40s worst case eliminated). Route now builds the deterministic brief first and treats it as the explicit fallback. New `LONGITUDINAL_AI_ENABLED` env flag (must equal `"true"`; missing/other = deterministic only) gating the Gemini call, injectable as `deps.aiEnabled`. Old `AIInsightsBanner` repurposed into an "Ask HealthLens Assistant" chat CTA (the new card is the flagship). 167 tests; client build green.
-- **2026-06-10:** Stage 1.2 — Longitudinal Insights. New [`utils/longitudinalInsights.js`](utils/longitudinalInsights.js) (deterministic `buildMetricSeries`, `compareLatestToPrevious` lab-only with interpretation categories, compact `buildInsightsContext`, `buildDeterministicInsights` fallback/educational state). New `generateLongitudinalInsights()` + `getLongitudinalModel()` (strict JSON schema, safety system instruction, output normalizer) in [`services/aiService.js`](services/aiService.js). New `GET /api/repository/insights` ([`routes/repository.js`](routes/repository.js)) — loads user+reports, short-circuits AI when `<2` labs, deterministic fallback on AI failure, `404`/`500` guards, `generatedAt`. Frontend: `fetchRepositoryInsights()` in [`client/src/lib/api.js`](client/src/lib/api.js), flagship [`LongitudinalInsightsCard.jsx`](client/src/components/Dashboard/LongitudinalInsightsCard.jsx) ("What Changed Since Your Last Report?", loading/empty/error states + AI/deterministic badge) rendered whole-history (outside lab/entity branch); [`Dashboard.jsx`](client/src/pages/Dashboard.jsx) `loadInsights()` refreshes after init + upload + reviewed save. 166 tests (was 149); client build green.
-- **2026-06-10:** DB config now environment-driven (MongoDB Atlas migration). [`config/db.js`](config/db.js) reads `process.env.MONGODB_URI` with a local fallback (previously hardcoded `mongodb://localhost:27017/healthlens`); connection log now reports the live `mongoose.connection.name`. `MONGODB_URI` documented in `.env.example`. Verified end-to-end against Atlas: demo login + `/api/repository/*` return the seeded Priya Sharma journey (4 reports, Metformin, Type 2 Diabetes). Note: `npm run seed:demo` against an existing user keeps the old password unless `RESET_DEMO_PASSWORD=true`. 149 tests still passing.
-- **2026-06-10:** Stage 4.3 — Demo patient seed + evaluation docs. New [`scripts/demoPatientData.js`](scripts/demoPatientData.js) (Priya Sharma, 4 reports Jan–Jun 2026) + [`scripts/seedDemoPatient.js`](scripts/seedDemoPatient.js) (`npm run seed:demo`, idempotent upsert, scoped report reset, optional `RESET_DEMO_PASSWORD=true`). [`tests/demoPatientData.test.js`](tests/demoPatientData.test.js) — chronology, strict lab metric name equality, vitality scores, schema fields. [`docs/DEMO.md`](docs/DEMO.md) — credentials, verification checklist, 3–4 min evaluation script (calendar navigation + chat Gemini fallback notes). README pointer added. No extraction or frontend changes. 149 tests.
-- **2026-06-10:** Stage 4.1–4.2 — AI token protection + graceful failure handling. New [`middleware/rateLimiters.js`](middleware/rateLimiters.js) (`express-rate-limit`: standard 300/15m, auth 20, upload 20, interpret 8, chat 25; user-keyed after auth). [`services/aiService.js`](services/aiService.js) — `withTimeout` + `callWithSingleRetry` on all four Gemini entry points. [`routes/interpret.js`](routes/interpret.js) saves report with fallback `aiInterpretation` when Gemini fails (`aiUnavailable: true`). [`routes/chat.js`](routes/chat.js) — 1500-char message limit, latest-10 bounded history via `buildBoundedChatHistory`, `503` on AI failure. [`routes/upload.js`](routes/upload.js) — `503` for prescription/entity AI lane failures. Frontend: `api.js` preserves HTTP status; Dashboard upload guard + `aiUnavailable` banner; Chat `429`/`503` handling. 142 tests; client build green.
-- **2026-06-09:** Stage 4 — Dashboard refinement pass. Retired the standalone `/timeline` page + `HealthCalendar` + Navbar link and uninstalled FullCalendar (mini calendar [`MiniCalendarCard.jsx`](client/src/components/Dashboard/MiniCalendarCard.jsx) now carries a "Recent Records" list). Replaced the organ-system "Biomarker Intelligence" with a higher-value [`NeedsAttentionCard.jsx`](client/src/components/Dashboard/NeedsAttentionCard.jsx) (abnormal markers + delta vs the previous report or "New finding"; `buildAttentionItems` in [`client/src/lib/biomarkerIntelligence.js`](client/src/lib/biomarkerIntelligence.js)). Categorized the Full Report Breakdown by clinical panel via new [`client/src/lib/canonicalCategories.js`](client/src/lib/canonicalCategories.js) `resolveCategory()` (CBC/Vitamins/Lipid/...). Halved Trend Analytics (now sharing a row with Needs Attention; chart 300->200). Rebalanced [`VitalitySnapshotCard.jsx`](client/src/components/Dashboard/VitalitySnapshotCard.jsx) with a bottom stats strip (reports / biomarkers tracked / out-of-range) + multi-alert hint. Build green.
-- **2026-06-09:** Stage 4 — Dashboard premium redesign ("Vitality Core" slate/teal). Recomposed [`Dashboard.jsx`](client/src/components/Dashboard/Dashboard.jsx) into a SaaS-grade layout: overline + dynamic greeting header, top row = [`VitalitySnapshotCard.jsx`](client/src/components/Dashboard/VitalitySnapshotCard.jsx) (SVG radial [`VitalityRing.jsx`](client/src/components/Dashboard/VitalityRing.jsx) + condition/medication pills + alert box) over a custom [`MiniCalendarCard.jsx`](client/src/components/Dashboard/MiniCalendarCard.jsx) (no library, event-ringed days), then [`BiomarkerIntelligenceCard.jsx`](client/src/components/Dashboard/BiomarkerIntelligenceCard.jsx) (Cardiovascular/Metabolic/Renal cards with Recharts sparklines + status pills via new [`client/src/lib/biomarkerIntelligence.js`](client/src/lib/biomarkerIntelligence.js)), Trend Analytics, full-width teal [`AIInsightsBanner.jsx`](client/src/components/Dashboard/AIInsightsBanner.jsx), and the full report breakdown. Restyled `BiomarkerGrid`/`TrendAnalyticsCard`/`TimelineSelector`/`DocumentEntitiesCard` to white/slate/teal; replaced `HealthSnapshotCard` (removed). Redesigned [`Timeline.jsx`](client/src/pages/Timeline.jsx) page (stat chips, type legend, recent-activity rail, white calendar card) and retuned the FullCalendar CSS overrides to teal-700/slate. All wired to real data (repository aggregates + report history); build green.
-- **2026-06-09:** Stage 4 — Health Dashboard (I9 + I10 + I11 + I13). **I9:** new [`HealthSnapshotCard.jsx`](client/src/components/Dashboard/HealthSnapshotCard.jsx) (active conditions, active medications, latest alerts, recent recommendations, vitality chip) fed by Stage 3 repository aggregates + latest report. **I11:** new [`client/src/lib/trends.js`](client/src/lib/trends.js) `buildMetricSeries()` + [`TrendAnalyticsCard.jsx`](client/src/components/Dashboard/TrendAnalyticsCard.jsx) selectable per-biomarker Recharts chart (reuses already-loaded history; no new endpoint). Both mounted in a global top zone of [`Dashboard.jsx`](client/src/components/Dashboard/Dashboard.jsx) (outside the print grid). **I10:** added `@fullcalendar/react` (daygrid/list/interaction); new [`HealthCalendar.jsx`](client/src/components/Dashboard/HealthCalendar.jsx) consuming `/api/repository/timeline`, event click → `/dashboard?reportId=`, on its own [`/timeline`](client/src/pages/Timeline.jsx) page + Navbar link; Vitality Core CSS overrides in [`index.css`](client/src/index.css). **I13:** weighted [`utils/clinical/vitalityScore.js`](utils/clinical/vitalityScore.js) (priority-weighted deductions: critical 12 / high 8 / medium 5 / low 3, clamp 0–100) now backs the [`Report`](models/Report.js) `vitalityScore` virtual. 127 tests
-- **2026-06-09:** Stage 3 — Personal Health Repository (I7 + I8). New [`utils/repositoryAggregator.js`](utils/repositoryAggregator.js) rolls up `medications`/`diagnoses`/`symptoms`/`doctorAdvice`+`testsAdvised` across all of a user's reports, deduped by normalized key with per-occurrence detail (`count`, `firstSeen`/`lastSeen`, `latest`, `occurrences[]`). New [`utils/timelineBuilder.js`](utils/timelineBuilder.js) `buildTimeline()` derives a computed-on-read normalized event stream (one typed event per report: test/scan/prescription/consultation/note/document) with per-event counts. New [`routes/repository.js`](routes/repository.js) exposes `GET /api/repository/{medications,diagnoses,symptoms,advice,timeline,summary}` (all `protect`, deps-injected handlers), mounted in [`server.js`](server.js). Frontend api stubs added to [`client/src/lib/api.js`](client/src/lib/api.js) (`fetchMedicationHistory`, `fetchDiagnosisHistory`, `fetchSymptomHistory`, `fetchAdviceHistory`, `fetchHealthTimeline`, `fetchRepositorySummary`) — no UI yet. No new collection (computed-on-read). 122 tests
-- **2026-06-09:** Stage 2b — Text Entity Lane (I4) + Generalized Review (I5). New `extractEntitiesFromText()` in [`services/aiService.js`](services/aiService.js) (Gemini text model, strict schema incl. `symptoms[]`, no numeric extraction) and [`services/documentEntityService.js`](services/documentEntityService.js) catch-all lane that routes `scan_report`/`discharge_summary`/`typed_note`/`unknown` through text extraction (reusing `annotateMedications`); [`services/extractionService.js`](services/extractionService.js) `switch` now has three lanes. Save generalized: [`routes/prescription.js`](routes/prescription.js) `saveDocumentHandler` (documentType + symptoms aware, derived `reportType`, deterministic summary, symptoms-only allowed) mounted at new `POST /api/documents` ([`routes/document.js`](routes/document.js)); `POST /api/prescriptions` kept as back-compat delegate. Frontend: generalized [`ReviewExtraction.jsx`](client/src/components/ReviewExtraction.jsx) (documentType-aware copy + Symptoms section), [`Dashboard.jsx`](client/src/pages/Dashboard.jsx) routes any non-`lab_report` doc to review and saves via `saveReviewedDocument()`, `PrescriptionCard` → [`DocumentEntitiesCard.jsx`](client/src/components/Dashboard/DocumentEntitiesCard.jsx) (adds Symptoms), `symptoms` added to `reportToDashboardPayload`. Optional `GEMINI_TEXT_MODEL` env pin. Deferred to later: multi-page PDF documents. 104 tests
-- **2026-06-09:** Stage 2a — Prescription Vision Lane (I3 + I6 + prescription-scoped review/save). New [`services/prescriptionService.js`](services/prescriptionService.js) (gentle `sharp` prep + Gemini Vision) and `extractPrescriptionFromImage()` in [`services/aiService.js`](services/aiService.js) (strict entity schema); [`utils/clinical/drugDictionary.js`](utils/clinical/drugDictionary.js) `validateDrugName()` fuzzy flagging; `prescription` case wired in [`services/extractionService.js`](services/extractionService.js) with an upload `documentType` hint override; new `POST /api/prescriptions` ([`routes/prescription.js`](routes/prescription.js)) save endpoint; `aiInterpretation.summary` relaxed to optional in [`models/Report.js`](models/Report.js). Frontend: upload doc-type selector ([`UploadZone.jsx`](client/src/components/UploadZone.jsx)), mandatory editable review screen ([`ReviewExtraction.jsx`](client/src/components/ReviewExtraction.jsx)) via new `APP_STATE.REVIEW`, and [`PrescriptionCard.jsx`](client/src/components/Dashboard/PrescriptionCard.jsx) dashboard display. Deferred to 2b: I4 printed-entity extraction, generalized I5 confirmation, multi-page PDF prescriptions. Smoke-tested end-to-end on a real handwritten dermatology OPD script (correctly read Acne grade 3 + scars and 3 topical meds); follow-ups from that run: added dermatology drugs to the dictionary, suppressed low-similarity (<0.6) "did you mean" suggestions, and added `GEMINI_VISION_MODEL` env pin (`gemini-flash-latest` alias was returning 503). 94 tests
-- **2026-06-08:** Stage 1 — Data Model & Document Routing Foundation. Expanded [`models/Report.js`](models/Report.js) with `documentType` enum + `medications`/`diagnoses`/`symptoms`/`doctorAdvice`/`testsAdvised`/`provenance` scaffolding (optional, defaulted, backward compatible). Added deterministic `classifyDocumentType()` to [`services/reportClassifier.js`](services/reportClassifier.js); routing seam in [`services/extractionService.js`](services/extractionService.js) (all types → lab pipeline for now); `documentType` threaded into upload log + persisted in [`routes/interpret.js`](routes/interpret.js). 76 tests
-- **2026-06-08:** Chat API alignment — `generateChatResponse(message, profile, reports)` with JSON system prompt; simplified `POST /api/chat` body; `sendChatMessage(message)`; Chat.jsx static welcome + `isTyping`; 68 tests
-- **2026-06-08:** Auth UI + Chat backend — split-screen [`Login.jsx`](client/src/pages/Login.jsx)/[`Register.jsx`](client/src/pages/Register.jsx) prototype; [`AuthBrandPanel`](client/src/components/Auth/AuthBrandPanel.jsx) + back-to-home links; Navbar hidden on auth routes; `POST /api/chat` with [`chatContextBuilder`](utils/chatContextBuilder.js) + `generateChatResponse`; live [`Chat.jsx`](client/src/pages/Chat.jsx); 68 tests
-- **2026-06-08:** Chat Assistant UI — [`Chat.jsx`](client/src/pages/Chat.jsx) from HTML mockup (static messages, controlled input, `handleSend` stub); protected `/chat` route; Navbar **Assistant** link; Footer hidden on `/chat`; `chat-scroll` utility in [`index.css`](client/src/index.css); 58 tests unchanged
-- **2026-06-08:** Vault prototype UI — [`Vault.jsx`](client/src/pages/Vault.jsx) rebuilt from HTML mockup `<main>` (bento stats, search/sort, card archive with Stable/Attention variants); lucide-react icons; API wiring preserved; shared [`Footer.jsx`](client/src/components/Layout/Footer.jsx) extracted from Landing; conditional global footer in [`App.jsx`](client/src/App.jsx); 58 tests unchanged
-- **2026-06-07:** Landing page prototype conversion — [`Landing.jsx`](client/src/pages/Landing.jsx) rebuilt from HTML mockup (body + footer); lucide-react icons; extended Tailwind tokens + `ambient-shadow`/`glass-panel`/reveal CSS; HealthLens AI branding
-- **2026-06-07:** Vitality Core UI polish — state-aware 3-column [`Navbar.jsx`](client/src/components/Layout/Navbar.jsx); Dashboard 8/4 grid with new [`AIRecommendationCard.jsx`](client/src/components/Dashboard/AIRecommendationCard.jsx); `TimelineSelector` card wrapper; smooth-scroll anchors; 58 tests unchanged
-- **2026-06-07:** Timeline selector scrubber — [`TimelineSelector.jsx`](client/src/components/Dashboard/TimelineSelector.jsx) horizontal report pills on Dashboard; history-driven selection + URL sync; Vault simplified to list-only (FullCalendar removed); 58 tests unchanged
-- **2026-06-07:** Health Vault + report deep-link — `GET /api/reports/:id` with 403 owner check; [`pages/Vault.jsx`](client/src/pages/Vault.jsx) list archive; Dashboard `?reportId=` + `reportToDashboardPayload`; Navbar Vault link; 58 tests
-- **2026-06-07:** User profile + AI context — nested `profile` on [`models/User.js`](models/User.js); `GET /api/users/me` + `PUT /api/users/profile` via [`routes/users.js`](routes/users.js); full Profile intake form; [`utils/profileContextBuilder.js`](utils/profileContextBuilder.js) prepends age/BMI/conditions/lifestyle to Gemini prompt; 54 tests
-- **2026-06-07:** React Router scaffold — `react-router-dom`; [`App.jsx`](client/src/App.jsx) routing shell with `ProtectedRoute`; pages (`Landing`, `Login`, `Register`, `Dashboard`, `Profile`); sticky [`Navbar`](client/src/components/Layout/Navbar.jsx); `BiomarkerGrid` grouped by measurement `category` with lucide icons; 43 tests unchanged
-- **2026-06-07:** Dashboard PDF export — `react-to-print` on [`Dashboard.jsx`](client/src/components/Dashboard/Dashboard.jsx); action bar with Download PDF; printable grid ref; `print:hidden` on controls
-- **2026-06-07:** Secure user-scoped routes — Report `userId` ObjectId ref to User; `protect` on upload/interpret/history; React login/register gate + JWT Bearer headers in api client; 43 tests unchanged
-- **2026-06-07:** JWT auth backend — `models/User.js` (bcrypt hash + `matchPassword`), `POST /api/auth/register` + `/login`, `protect` middleware in [`middleware/authMiddleware.js`](middleware/authMiddleware.js); `JWT_SECRET` in `.env.example`; 43 tests unchanged
-- **2026-06-07:** `HealthTimelineCard` — recharts line chart for `vitalityScore` over `reportDate`; `fetchReportHistory()` in [`client/src/lib/api.js`](client/src/lib/api.js); full-width chart atop dashboard grid
-- **2026-06-07:** Vitality score virtual on Report model; `GET /api/reports/history` via [`routes/reports.js`](routes/reports.js); 43 tests
-- **2026-06-07:** MongoDB persistence — Mongoose `Report` model, `config/db.js`, interpret route saves measurements + `aiInterpretation`, returns `reportId`; 38 tests (save mock + failure case)
-- **2026-06-07:** Upload-to-dashboard UI (`UploadZone`, `ProcessingView`, `Dashboard`, `AISummaryCard`, `BiomarkerGrid`); IDLE/PROCESSING/RESOLVED state machine; chained upload + interpret APIs; 37 backend tests unchanged
-- **2026-06-07:** React frontend scaffolded in `client/` (Vite, React, Tailwind v3 Vitality Core tokens, lucide-react, recharts); Vite `/api` proxy to port 5000
-- **2026-06-06:** Gemini AI layer wired (`services/aiService.js`); `/api/interpret` returns `{ success, aiPrompt, data }`; `GEMINI_API_KEY` in `.env.example`; 37 tests
-- **2026-06-06:** Stripper hotfix (B12, 25-OH, Customer Since date); `POST /api/interpret` prompt-only; upload decoupled from aiPrompt; 35 tests
-- **2026-06-06:** Universal range-stripping parser; date-only metadata; aiContextGenerator
-- **Earlier:** CBC.pdf fixes; Plans 1–4; section stitching; enrichment
+- **Legacy reports:** `userId: "anonymous_patient"` string docs won't appear in scoped queries
+- **Legacy dev tester removed:** use React client or curl with Bearer token for API debugging
+- **OCR quirks:** Label overlap, occasional decimal misreads — mitigated by `maskLabels()`; AI contextualizes via reference ranges
+- **Digital PDFs:** No bounding boxes from `pdf-parse` — `sourceBBox` often null
+- **Prescription PDFs:** Vision lane uses page 0 only
+- **Open parser edge cases:** Bilirubin total/direct, platelets/MPV, eGFR ref leakage, T3/T4 false positives
 
 ---
 
-## 10. Maintenance
+## 10. Testing & QA
+
+| Gate | Command | Expected |
+|------|---------|----------|
+| Unit tests | `npm test` | **203/203** passing |
+| Frontend build | `npm run build --prefix client` | Green |
+| API smoke | `node scripts/qaStage31.mjs` | P0: 0 (destructive — re-seed demo after) |
+
+Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biomarkerIntelligence.js`.
+
+---
+
+## 11. Milestones (shipped)
+
+| Milestone | Summary |
+|-----------|---------|
+| Extraction MVP + clinical pipeline | Deterministic PDF/OCR → structured measurements |
+| Gemini interpretation + MongoDB | Persist reports; JWT auth; user-scoped routes |
+| React app + Dashboard | Upload flow, trends, vitality, Vault, Chat |
+| Prescription Vision + entity lanes | Review-then-save for non-lab documents |
+| Personal Health Repository (backend) | Cross-report rollups + timeline API |
+| Dashboard premium UI | VitalitySnapshot, NeedsAttention, TrendAnalytics, LongitudinalInsightsCard |
+| Demo seed | Priya Sharma 4-report narrative; `npm run seed:demo` |
+| Longitudinal insights | Deterministic-first; `LONGITUDINAL_AI_ENABLED` opt-in |
+| Doctor Summary | Backend builder + printable `/doctor-summary` UI |
+| Repository UI | `/repository` via `GET /api/repository/overview` |
+| Upload entry fix | `?upload=1` mode; Navbar Upload CTA |
+| Profile + delete | Tabbed profile; Vault report delete; account/password APIs |
+| Stage 3.1–3.3 QA | `qaStage31.mjs`; J1 malformed-id fix; `docs/DEMO.md` rewrite |
+| Cloudinary Vault storage | Upload originals to Cloudinary; `GET /api/reports/:id/file`; Vault download button |
+
+---
+
+## 12. Changelog (recent)
+
+- **2026-06-10:** Cloudinary file storage — optional `CLOUDINARY_*` env; uploads persist authenticated originals; `GET /api/reports/:id/file` signed download; Vault download button; delete syncs Cloudinary asset; 203 tests.
+- **2026-06-10:** Public static pages — `/privacy`, `/terms`, `/contact`, `/careers`, `/blog` (+ check-ups article); Footer links wired via React Router. Repo cleanse: removed root `index.html`, `eng.traineddata`, `Context.txt`, dead dashboard components, unused `clsx`/`tailwind-merge`.
+- **2026-06-10:** Public documentation rewrite — [README.md](README.md), [client/README.md](client/README.md), and this file restructured for open-source onboarding; technical reference consolidated.
+- **2026-06-10:** Stage 3.3 — [docs/DEMO.md](docs/DEMO.md) updated (Atlas, eval script, Repository + Doctor Summary acts, freeze guidance).
+- **2026-06-10:** Stage 3.2 — malformed report id → `400` on `GET`/`DELETE /api/reports/:id`; 191 tests.
+- **2026-06-10:** Profile + account APIs + Vault delete; tabbed Profile UI.
+- **2026-06-10:** Repository perf — `GET /api/repository/overview` replaces five parallel fetches; client overview cache.
+- **2026-06-10:** Upload bugfix (`?upload=1`); Navbar redesign; Vault stat relabel.
+- **2026-06-10:** Stage 2.3 Repository UI; Stage 2.2 Doctor Summary UI; Stage 2.1 doctor-summary API.
+- **2026-06-10:** Stage 1.2 longitudinal insights + client-side insights cache.
+
+---
+
+## 13. Maintenance
 
 This file **must be updated** after every plan implementation or meaningful code change.  
 See [`.cursor/rules/project-context-maintenance.mdc`](.cursor/rules/project-context-maintenance.mdc).
 
-**Update checklist:** Last Updated date · Changelog prepend · affected sections (endpoints, test count, Done/In Progress, known issues).
+**Update checklist:** Last Updated date · Changelog prepend · affected sections (endpoints, test count, milestones, known issues).

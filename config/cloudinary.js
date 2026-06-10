@@ -1,0 +1,30 @@
+const { v2: cloudinary } = require("cloudinary");
+
+function isCloudinaryEnabled() {
+  return Boolean(
+    process.env.CLOUDINARY_CLOUD_NAME &&
+      process.env.CLOUDINARY_API_KEY &&
+      process.env.CLOUDINARY_API_SECRET,
+  );
+}
+
+function configureCloudinary() {
+  if (!isCloudinaryEnabled()) {
+    return false;
+  }
+
+  cloudinary.config({
+    cloud_name: process.env.CLOUDINARY_CLOUD_NAME,
+    api_key: process.env.CLOUDINARY_API_KEY,
+    api_secret: process.env.CLOUDINARY_API_SECRET,
+    secure: true,
+  });
+
+  return true;
+}
+
+module.exports = {
+  cloudinary,
+  isCloudinaryEnabled,
+  configureCloudinary,
+};

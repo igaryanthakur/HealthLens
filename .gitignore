@@ -1,4 +1,10 @@
 node_modules/
+.env
 client/dist
 !uploads/.gitkeep
+uploads/*
+!uploads/.gitkeep
+eng.traineddata
+*.traineddata
+.cursor/plans/
 npm-debug.log*

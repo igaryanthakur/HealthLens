@@ -9,6 +9,12 @@ import Register from './pages/Register'
 import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
 import Chat from './pages/Chat'
+import PrivacyPolicy from './pages/PrivacyPolicy'
+import TermsOfService from './pages/TermsOfService'
+import ContactSupport from './pages/ContactSupport'
+import Careers from './pages/Careers'
+import HealthBlogIndex from './pages/HealthBlogIndex'
+import HealthBlog from './pages/HealthBlog'
 import { getAuthToken } from './lib/api'
 
 const Vault = lazy(() => import('./pages/Vault'))
@@ -43,6 +49,12 @@ function AppContent() {
         <Route path="/" element={<Landing />} />
         <Route path="/login" element={<Login />} />
         <Route path="/register" element={<Register />} />
+        <Route path="/privacy" element={<PrivacyPolicy />} />
+        <Route path="/terms" element={<TermsOfService />} />
+        <Route path="/contact" element={<ContactSupport />} />
+        <Route path="/careers" element={<Careers />} />
+        <Route path="/blog" element={<HealthBlogIndex />} />
+        <Route path="/blog/regular-health-checkups" element={<HealthBlog />} />
         <Route
           path="/dashboard"
           element={
