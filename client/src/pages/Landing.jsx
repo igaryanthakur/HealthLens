@@ -93,7 +93,7 @@ export default function Landing() {
             style={{ animationDuration: '10s', animationDelay: '2s' }}
           />
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-gutter items-center">
-            <div className="lg:col-span-5 flex flex-col gap-lg z-10 reveal-hidden" data-reveal-delay="100">
+            <div className="lg:col-span-5 flex flex-col gap-lg z-10 reveal-visible">
               <div className="flex flex-col gap-md">
                 <div className="inline-flex items-center gap-xs px-sm py-xs bg-primary-container/10 text-primary rounded-full w-fit border border-primary/10">
                   <Brain className="text-[16px]" />
@@ -142,7 +142,7 @@ export default function Landing() {
             </div>
 
             <div
-              className="lg:col-span-7 relative z-10 mt-xl lg:mt-0 reveal-hidden"
+              className="lg:col-span-7 relative z-10 mt-xl lg:mt-0 reveal-visible"
               data-reveal-delay="300"
             >
               <div className="relative rounded-3xl p-sm bg-gradient-to-br from-surface-container-lowest to-surface-container-low border border-outline-variant/30 ambient-shadow">

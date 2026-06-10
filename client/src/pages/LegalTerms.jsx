@@ -1,7 +1,7 @@
 import { Link } from 'react-router-dom'
 import StaticPageLayout, { StaticList, StaticSection } from '../components/Layout/StaticPageLayout'
 
-export default function TermsOfService() {
+export default function LegalTerms() {
   return (
     <StaticPageLayout
       badge="Legal"
