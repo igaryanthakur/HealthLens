@@ -1,6 +1,6 @@
 # HealthLens AI — Project Context
 
-**Last Updated:** Wednesday, June 10, 2026 (Vercel pdf-parse fix)  
+**Last Updated:** Wednesday, June 10, 2026 (Vercel SPA frontend fix)  
 **Status:** Eval-ready · **203/203** tests · freeze (bug fixes + docs only)
 
 > Contributor and agent reference. For onboarding, start with [README.md](README.md).
@@ -43,7 +43,7 @@ flowchart LR
 
 **Commands:** `npm install` · `npm run dev` (API `:5000` + frontend `:5173`) · `npm test` · `npm run seed:demo` (see [docs/DEMO.md](docs/DEMO.md))
 
-**Vercel (full-stack):** `vercel-build` builds `client/dist` then copies to `public/` for static CDN; [`server.js`](server.js) is the Express function (no `outputDirectory` — avoids entrypoint-not-found in `client/dist`). App factory: [`createApp.js`](createApp.js). Set `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY` (and optional `CLOUDINARY_*`) in the Vercel dashboard. `functions.server.js.maxDuration` is 60s (Pro). `/health` is explicitly routed to `server.js` so it is not swallowed by the SPA rewrite.
+**Vercel (full-stack):** `vercel-build` builds `client/dist` then copies to `public/`; [`server.js`](server.js) is the Express function (no `outputDirectory`). Zero-config Express receives `/` before the CDN, so [`createApp.js`](createApp.js) `attachProductionFrontend` serves `public/index.html` and assets via `sendFile` when `public/` exists; `includeFiles` bundles `public/**` into the function. Set `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY` (and optional `CLOUDINARY_*`) in the Vercel dashboard. `functions.server.js.maxDuration` is 60s (Pro). `/health` and `/api/*` are explicitly routed to `server.js`.
 
 ---
 
@@ -245,6 +245,7 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
+- **2026-06-10:** Vercel SPA fix — `attachProductionFrontend` in `createApp.js` serves `public/` from Express (`sendFile`); `includeFiles` adds `public/**` to `server.js` bundle (fixes `/` 404 while `/health` worked).
 - **2026-06-10:** Vercel runtime fix — lazy-load extraction on upload; `@napi-rs/canvas` polyfill before `pdf-parse`; `includeFiles` for native canvas on `server.js`; explicit `/api` rewrite.
 - **2026-06-10:** Vercel restore — re-applied `createApp.js`, serverless `server.js` export, mongoose connection cache, tmp uploads, `vercel-build` → `public/`; `/health` rewrite to `server.js`; 203 tests.
 - **2026-06-10:** Vercel static deploy fix — `vercel-build` copies `client/dist` → `public/`; removed `outputDirectory` from `vercel.json` (fixes “No entrypoint found in output directory”).
