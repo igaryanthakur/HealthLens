@@ -20,7 +20,7 @@ const indexHtmlPath = path.join(publicDir, "index.html");
 
 /**
  * Local-only: serve `public/` from Express after `npm run vercel-build`.
- * On Vercel, `outputDirectory: public` + `api/index.js` serves static assets from the CDN.
+ * On Vercel, `public/` (populated by vercel-build) is served as static assets; `api/index.js` handles API routes.
  */
 function attachProductionFrontend(app) {
   if (process.env.VERCEL === "1" || !fs.existsSync(indexHtmlPath)) {

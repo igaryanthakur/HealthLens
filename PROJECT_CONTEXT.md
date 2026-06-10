@@ -1,6 +1,6 @@
 # HealthLens AI — Project Context
 
-**Last Updated:** Wednesday, June 10, 2026 (Vercel routes + copyDist fix)  
+**Last Updated:** Wednesday, June 10, 2026 (Vercel outputDirectory fix)  
 **Status:** Eval-ready · **203/203** tests · freeze (bug fixes + docs only)
 
 > Contributor and agent reference. For onboarding, start with [README.md](README.md).
@@ -43,7 +43,7 @@ flowchart LR
 
 **Commands:** `npm install` · `npm run dev` (API `:5000` + frontend `:5173`) · `npm test` · `npm run seed:demo` (see [docs/DEMO.md](docs/DEMO.md))
 
-**Vercel (full-stack):** `vercel-build` → `scripts/copyDist.js` copies `client/dist` → `public/` (hard-fails if `index.html` missing). `vercel.json` sets `outputDirectory: public` with `routes` + `handle: filesystem` so static assets are served before SPA fallback (avoids “No entrypoint found” on `public/`). API only: [`api/index.js`](api/index.js) (`/api/*`, `/health`); root [`server.js`](server.js) is in [`.vercelignore`](.vercelignore). **Dev UI:** `http://localhost:5173` (Vite), not `:5000`. Set `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY` (and optional `CLOUDINARY_*`) in the Vercel dashboard. `api/index.js` `maxDuration` 60s (Pro).
+**Vercel (full-stack):** `vercel-build` → `scripts/copyDist.js` copies `client/dist` → `public/` (hard-fails if `index.html` missing). Do **not** set `outputDirectory: public` in `vercel.json` — that triggers Vercel’s “No entrypoint found” scan on `public/` when `api/` functions exist. With `framework: null`, Vercel serves built files from `public/` automatically; SPA fallback via `rewrites`. API: [`api/index.js`](api/index.js) (`/api/*`, `/health`); root [`server.js`](server.js) in [`.vercelignore`](.vercelignore). Clear any **Output Directory** override in the Vercel dashboard (Settings → Build). **Dev UI:** `http://localhost:5173`. Env: `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY`, optional `CLOUDINARY_*`. `maxDuration` 60s (Pro).
 
 ---
 
@@ -245,7 +245,8 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
-- **2026-06-10:** Vercel static routing fix — `vercel.json` `rewrites` → `routes` with `handle: filesystem` (static CDN before SPA fallback); `scripts/copyDist.js` replaces inline `cpSync` with explicit error if `index.html` missing from `public/`.
+- **2026-06-10:** Vercel entrypoint fix — removed `outputDirectory: public` from `vercel.json` (with `api/` present, that setting makes Vercel scan `public/` for Node entrypoints); `framework: null` + `rewrites` for SPA; dashboard Output Directory override must be cleared.
+- **2026-06-10:** Vercel static routing fix — `scripts/copyDist.js` replaces inline `cpSync` with explicit error if `index.html` missing from `public/`.
 - **2026-06-10:** Vercel static JS fix — Vite emits `.mjs` chunks so Vercel does not transpile browser bundles to CommonJS (`exports is not defined`); `format: 'es'` + `npm ci --include=dev` in `vercel-build`.
 - **2026-06-10:** Vercel static/API split — `outputDirectory: public` + `api/index.js` for API; `.vercelignore` excludes root `server.js`; local dev UI on `:5173`.
 - **2026-06-10:** Vercel SPA fix — `attachProductionFrontend` in `createApp.js` (local-only after split).
