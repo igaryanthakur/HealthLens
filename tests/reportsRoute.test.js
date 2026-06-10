@@ -168,7 +168,7 @@ test("fileDownloadHandler returns signed URL for owner with stored file", async 
     {
       findById: async () => reportWithStoredFile,
       isCloudinaryEnabled: () => true,
-      getSignedDownloadUrl: () => "https://signed.example/cbc-report.pdf",
+      resolveSignedDownloadUrl: async () => "https://signed.example/cbc-report.pdf",
     },
   );
 

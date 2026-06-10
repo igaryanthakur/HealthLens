@@ -1,7 +1,7 @@
 # HealthLens AI — Project Context
 
-**Last Updated:** Wednesday, June 10, 2026 (Vercel 250MB bundle fix)  
-**Status:** Eval-ready · **203/203** tests · freeze (bug fixes + docs only)
+**Last Updated:** Wednesday, June 10, 2026 (Cloudinary delivery type fix)  
+**Status:** Eval-ready · **207/207** tests · freeze (bug fixes + docs only)
 
 > Contributor and agent reference. For onboarding, start with [README.md](README.md).
 
@@ -207,6 +207,7 @@ Repository rollups are **computed on read** (no separate collection) via [`utils
 - **Digital PDFs:** No bounding boxes from `pdf-parse` — `sourceBBox` often null
 - **Prescription PDFs:** Vision lane uses page 0 only
 - **Open parser edge cases:** Bilirubin total/direct, platelets/MPV, eGFR ref leakage, T3/T4 false positives
+- **Cloudinary legacy uploads:** Reports stored before the public-id/resource-type fix may need re-upload for reliable Vault download/delete; new uploads use `raw` for PDFs and retry delete across id/type variants
 
 ---
 
@@ -214,7 +215,7 @@ Repository rollups are **computed on read** (no separate collection) via [`utils
 
 | Gate | Command | Expected |
 |------|---------|----------|
-| Unit tests | `npm test` | **203/203** passing |
+| Unit tests | `npm test` | **207/207** passing |
 | Frontend build | `npm run build --prefix client` | Green |
 | API smoke | `node scripts/qaStage31.mjs` | P0: 0 (destructive — re-seed demo after) |
 
@@ -256,6 +257,8 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 - **2026-06-10:** Vercel restore — re-applied `createApp.js`, serverless `server.js` export, mongoose connection cache, tmp uploads, `vercel-build` → `public/`; `/health` rewrite to `server.js`; 203 tests.
 - **2026-06-10:** Vercel static deploy fix — `vercel-build` copies `client/dist` → `public/`; removed `outputDirectory` from `vercel.json` (fixes “No entrypoint found in output directory”).
 - **2026-06-10:** Vercel deployment fix — `createApp.js` factory (renamed from `app.js`); `server.js` exports Express for Vercel with DB middleware + `require.main` listen guard; removed broken `api/[...path].js` catch-all; `vercel.json` `maxDuration: 60`; mongoose connection cache + tmp upload dir retained; 203 tests.
+- **2026-06-10:** Cloudinary delivery-type fix — uploads use `type: "authenticated"` (not `access_mode`); downloads default to `upload` delivery for legacy assets and probe resource/delivery variants; `cloudinaryDeliveryType` on provenance; 207 tests.
+- **2026-06-10:** Cloudinary download/delete fix — `private_download_url` for all authenticated assets; PDFs upload as `raw`; delete retries alternate public id + resource type; Vault download opens signed URL in new tab; 207 tests.
 - **2026-06-10:** Cloudinary file storage — optional `CLOUDINARY_*` env; uploads persist authenticated originals; `GET /api/reports/:id/file` signed download; Vault download button; delete syncs Cloudinary asset; 203 tests.
 - **2026-06-10:** Public static pages — `/privacy`, `/terms`, `/contact`, `/careers`, `/blog` (+ check-ups article); Footer links wired via React Router. Repo cleanse: removed root `index.html`, `eng.traineddata`, `Context.txt`, dead dashboard components, unused `clsx`/`tailwind-merge`.
 - **2026-06-10:** Public documentation rewrite — [README.md](README.md), [client/README.md](client/README.md), and this file restructured for open-source onboarding; technical reference consolidated.

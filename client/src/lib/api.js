@@ -173,13 +173,18 @@ export async function fetchReportFileUrl(reportId) {
   return parseJsonResponse(res);
 }
 
-export function triggerFileDownload({ downloadUrl, filename }) {
-  const anchor = document.createElement('a');
-  anchor.href = downloadUrl;
-  anchor.download = filename || 'report';
-  anchor.target = '_blank';
-  anchor.rel = 'noopener noreferrer';
-  anchor.click();
+export function triggerFileDownload({ downloadUrl }) {
+  // Cloudinary signed URLs are cross-origin; the download attribute is ignored.
+  const opened = window.open(downloadUrl, '_blank', 'noopener,noreferrer');
+  if (!opened) {
+    const anchor = document.createElement('a');
+    anchor.href = downloadUrl;
+    anchor.target = '_blank';
+    anchor.rel = 'noopener noreferrer';
+    document.body.appendChild(anchor);
+    anchor.click();
+    anchor.remove();
+  }
 }
 
 export async function fetchMedicationHistory() {

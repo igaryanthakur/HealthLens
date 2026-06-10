@@ -57,6 +57,11 @@ const ProvenanceSchema = new mongoose.Schema(
     confidence: Number,
     cloudinaryPublicId: String,
     cloudinaryResourceType: { type: String, enum: ["image", "raw"], default: "image" },
+    cloudinaryDeliveryType: {
+      type: String,
+      enum: ["upload", "authenticated", "private"],
+      default: "upload",
+    },
     mimeType: String,
     bytes: Number,
   },

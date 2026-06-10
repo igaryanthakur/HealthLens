@@ -4,7 +4,7 @@ const Report = require("../models/Report");
 const logger = require("../utils/logger");
 const { protect } = require("../middleware/authMiddleware");
 const {
-  getSignedDownloadUrl,
+  resolveSignedDownloadUrl,
   deleteReportFile,
   isCloudinaryEnabled,
   SIGNED_URL_TTL_SECONDS,
@@ -72,7 +72,7 @@ async function getByIdHandler(req, res, deps = {}) {
 
 async function fileDownloadHandler(req, res, deps = {}) {
   const findById = deps.findById ?? ((id) => Report.findById(id));
-  const getDownloadUrl = deps.getSignedDownloadUrl ?? getSignedDownloadUrl;
+  const getDownloadUrl = deps.resolveSignedDownloadUrl ?? resolveSignedDownloadUrl;
   const cloudinaryEnabled = deps.isCloudinaryEnabled ?? isCloudinaryEnabled;
 
   if (!isValidReportId(req.params.id)) {
@@ -116,10 +116,15 @@ async function fileDownloadHandler(req, res, deps = {}) {
 
     const filename =
       report.provenance?.originalFilename || `healthlens-report-${req.params.id}`;
-    const downloadUrl = getDownloadUrl(
+    const downloadUrl = await getDownloadUrl(
       publicId,
       report.provenance?.cloudinaryResourceType,
-      { attachmentFilename: filename },
+      {
+        attachmentFilename: filename,
+        mimeType: report.provenance?.mimeType,
+        originalFilename: report.provenance?.originalFilename,
+        deliveryType: report.provenance?.cloudinaryDeliveryType,
+      },
     );
 
     return res.json({
@@ -171,7 +176,11 @@ async function deleteByIdHandler(req, res, deps = {}) {
     const publicId = report.provenance?.cloudinaryPublicId;
     if (publicId && cloudinaryEnabled()) {
       try {
-        await removeStoredFile(publicId, report.provenance?.cloudinaryResourceType);
+        await removeStoredFile(publicId, report.provenance?.cloudinaryResourceType, {
+          mimeType: report.provenance?.mimeType,
+          originalFilename: report.provenance?.originalFilename,
+          deliveryType: report.provenance?.cloudinaryDeliveryType,
+        });
       } catch (storageError) {
         logger.warn("Cloudinary delete failed during report removal", {
           reportId: req.params.id,
