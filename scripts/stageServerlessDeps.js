@@ -8,6 +8,7 @@ const SHARED_PACKAGES = [
   "@napi-rs/canvas",
   "@img/colour",
   "sharp",
+  "pdf-parse",
   "tesseract.js",
   "tesseract.js-core",
   "wasm-feature-detect",
@@ -54,6 +55,19 @@ function main() {
 
   if (copied.length === 0) {
     console.error("stageServerlessDeps: nothing copied — run npm install at repo root first");
+    process.exit(1);
+  }
+
+  const pdfWorker = path.join(
+    DEST,
+    "pdf-parse",
+    "dist",
+    "pdf-parse",
+    "cjs",
+    "pdf.worker.mjs"
+  );
+  if (!fs.existsSync(pdfWorker)) {
+    console.error("stageServerlessDeps: pdf.worker.mjs missing after staging pdf-parse");
     process.exit(1);
   }
 

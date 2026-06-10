@@ -1,11 +1,6 @@
 const fs = require("fs/promises");
-const { ensureCanvasPolyfill } = require("../utils/canvasPolyfill");
+const { getPDFParse } = require("../utils/pdfParseLoader");
 const { extractTextFromImageBuffer } = require("./ocrService");
-
-function getPDFParse() {
-  ensureCanvasPolyfill();
-  return require("pdf-parse").PDFParse;
-}
 
 const PDF_MIN_TEXT_LENGTH = Number(process.env.PDF_MIN_TEXT_LENGTH || 100);
 

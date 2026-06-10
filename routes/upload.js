@@ -100,7 +100,9 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
     }
 
     const isRuntimeDependencyFailure =
-      /Cannot find module|ENOENT|sharp|tesseract|canvas|wasm|worker/i.test(message);
+      /Cannot find module|ENOENT|sharp|tesseract|canvas|wasm|worker|pdf-parse|pdf\.worker/i.test(
+        message
+      );
 
     if (isRuntimeDependencyFailure) {
       return res.status(503).json({
