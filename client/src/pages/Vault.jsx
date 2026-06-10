@@ -163,9 +163,9 @@ export default function Vault() {
             </div>
             <div>
               <p className="text-on-surface font-semibold text-xl">
-                {loading ? '—' : `${attentionCount} Conditions`}
+                {loading ? '—' : `${attentionCount} Flagged`}
               </p>
-              <p className="text-label-sm text-outline">Chronic vitals tracked</p>
+              <p className="text-label-sm text-outline">Reports needing attention</p>
             </div>
           </div>
         </div>

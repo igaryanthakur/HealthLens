@@ -31,6 +31,11 @@ function computeInsightsSignature(reports = []) {
 export default function Dashboard() {
   const [searchParams, setSearchParams] = useSearchParams()
   const reportId = searchParams.get('reportId')
+  // Upload mode is URL-driven (?upload=1) so it can be triggered from anywhere
+  // (Navbar CTA, dashboard button) even when the user already has reports —
+  // otherwise the dashboard always auto-resolves to the latest report and the
+  // upload zone is unreachable.
+  const uploadMode = searchParams.get('upload') === '1'
 
   const [appState, setAppState] = useState(APP_STATE.IDLE)
   const [history, setHistory] = useState([])
@@ -108,6 +113,8 @@ export default function Dashboard() {
 
   useEffect(() => {
     if (loadingHistory) return
+    // Don't auto-resolve to a report while the user is intentionally uploading.
+    if (uploadMode) return
 
     if (history.length === 0) {
       setDashboardData(null)
@@ -128,7 +135,19 @@ export default function Dashboard() {
       setDashboardData(null)
       setAppState(APP_STATE.IDLE)
     }
-  }, [history, reportId, loadingHistory])
+  }, [history, reportId, loadingHistory, uploadMode])
+
+  function handleStartUpload() {
+    setError(null)
+    setAiUnavailableNotice(null)
+    setAppState(APP_STATE.IDLE)
+    setSearchParams({ upload: '1' })
+  }
+
+  function handleExitUpload() {
+    setError(null)
+    setSearchParams({})
+  }
 
   function handleTimelineSelect(id) {
     setSearchParams({ reportId: id })
@@ -197,6 +216,9 @@ export default function Dashboard() {
     setReviewData(null)
     setError(null)
     setAppState(APP_STATE.IDLE)
+    // Leave upload mode so we return to the dashboard (resolves to latest, or
+    // falls back to the upload zone when there is no history yet).
+    setSearchParams({})
   }
 
   if (loadingHistory && appState !== APP_STATE.PROCESSING) {
@@ -224,6 +246,17 @@ export default function Dashboard() {
     )
   }
 
+  if (uploadMode) {
+    return (
+      <UploadZone
+        onFileSelected={handleFileSelected}
+        onCancel={history.length > 0 ? handleExitUpload : undefined}
+        error={error}
+        disabled={appState === APP_STATE.PROCESSING}
+      />
+    )
+  }
+
   if (appState === APP_STATE.RESOLVED && dashboardData) {
     return (
       <>
@@ -237,6 +270,7 @@ export default function Dashboard() {
           history={history}
           activeReportId={dashboardData._id}
           onSelectReport={handleTimelineSelect}
+          onUploadNew={handleStartUpload}
           insights={insights}
           insightsLoading={insightsLoading}
           insightsError={insightsError}

@@ -1,5 +1,17 @@
-import { Link, useNavigate } from 'react-router-dom'
-import { HeartPulse, LogOut, User } from 'lucide-react'
+import { useState } from 'react'
+import { Link, useLocation, useNavigate } from 'react-router-dom'
+import {
+  HeartPulse,
+  LayoutDashboard,
+  Archive,
+  FolderHeart,
+  MessageCircle,
+  Upload,
+  LogOut,
+  User,
+  Menu,
+  X,
+} from 'lucide-react'
 import { clearAuthToken, getAuthToken } from '../../lib/api'
 
 const PUBLIC_LINKS = [
@@ -8,95 +20,188 @@ const PUBLIC_LINKS = [
   { href: '/#impact', label: 'Impact' },
 ]
 
+const AUTH_LINKS = [
+  { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
+  { to: '/vault', label: 'Vault', icon: Archive },
+  { to: '/repository', label: 'Repository', icon: FolderHeart },
+  { to: '/chat', label: 'Assistant', icon: MessageCircle },
+]
+
 export default function Navbar() {
   const navigate = useNavigate()
+  const { pathname } = useLocation()
   const isLoggedIn = !!getAuthToken()
+  const [mobileOpen, setMobileOpen] = useState(false)
 
   function handleLogout() {
     clearAuthToken()
+    setMobileOpen(false)
     navigate('/login')
   }
 
+  const isActive = (to) => pathname === to
+
   return (
-    <header className="sticky top-0 w-full z-50 bg-surface/90 backdrop-blur-md border-b border-outline-variant/20">
-      <div className="max-w-[1440px] mx-auto px-6 py-4 grid grid-cols-3 items-center gap-4">
-        <Link to="/" className="flex items-center gap-2 justify-self-start">
-          <HeartPulse className="text-primary" size={28} />
-          <span className="font-semibold text-primary text-lg">HealthLens AI</span>
-        </Link>
+    <header className="sticky top-0 z-50 w-full border-b border-slate-200/70 bg-white/80 backdrop-blur-xl">
+      <div className="max-w-[1440px] mx-auto px-5 md:px-8">
+        <div className="flex h-16 items-center justify-between gap-4">
+          {/* Brand */}
+          <Link
+            to="/"
+            onClick={() => setMobileOpen(false)}
+            className="flex items-center gap-2.5 shrink-0"
+          >
+            <span className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary text-white shadow-sm">
+              <HeartPulse size={20} />
+            </span>
+            <span className="font-semibold text-slate-900 text-lg tracking-tight">
+              HealthLens<span className="text-primary"> AI</span>
+            </span>
+          </Link>
 
-        <nav className="hidden md:flex items-center justify-center gap-6">
           {isLoggedIn ? (
             <>
-              <Link
-                to="/dashboard"
-                className="text-sm text-on-surface-variant hover:text-primary transition-colors"
-              >
-                Dashboard
-              </Link>
-              <Link
-                to="/vault"
-                className="text-sm text-on-surface-variant hover:text-primary transition-colors"
-              >
-                Vault
-              </Link>
-              <Link
-                to="/chat"
-                className="text-sm text-on-surface-variant hover:text-primary transition-colors"
-              >
-                Assistant
-              </Link>
-            </>
-          ) : (
-            PUBLIC_LINKS.map((link) => (
-              <a
-                key={link.href}
-                href={link.href}
-                className="text-sm text-on-surface-variant hover:text-primary transition-colors"
-              >
-                {link.label}
-              </a>
-            ))
-          )}
-        </nav>
+              {/* Desktop: centered pill nav */}
+              <nav className="hidden md:flex items-center gap-1 rounded-full bg-slate-100/80 p-1">
+                {AUTH_LINKS.map(({ to, label, icon: Icon }) => (
+                  <Link
+                    key={to}
+                    to={to}
+                    className={[
+                      'inline-flex items-center gap-1.5 rounded-full px-3.5 py-1.5 text-sm font-medium transition-colors',
+                      isActive(to)
+                        ? 'bg-white text-primary shadow-sm'
+                        : 'text-slate-500 hover:text-slate-900',
+                    ].join(' ')}
+                  >
+                    <Icon size={16} />
+                    {label}
+                  </Link>
+                ))}
+              </nav>
 
-        <div className="flex items-center justify-end gap-3">
-          {isLoggedIn ? (
-            <>
-              <Link
-                to="/profile"
-                className="inline-flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors"
-                aria-label="Profile"
-              >
-                <User size={20} />
-                <span className="hidden lg:inline">Profile</span>
-              </Link>
+              {/* Desktop: right actions */}
+              <div className="hidden md:flex items-center gap-2 shrink-0">
+                <Link
+                  to="/dashboard?upload=1"
+                  className="inline-flex items-center gap-1.5 rounded-xl bg-primary px-3.5 py-2 text-sm font-medium text-white shadow-sm hover:bg-primary-container transition-colors"
+                >
+                  <Upload size={16} />
+                  Upload
+                </Link>
+                <Link
+                  to="/profile"
+                  aria-label="Profile"
+                  className={[
+                    'flex h-9 w-9 items-center justify-center rounded-full border transition-colors',
+                    isActive('/profile')
+                      ? 'border-primary text-primary bg-primary/5'
+                      : 'border-slate-200 text-slate-500 hover:text-primary hover:border-primary/40',
+                  ].join(' ')}
+                >
+                  <User size={18} />
+                </Link>
+                <button
+                  type="button"
+                  onClick={handleLogout}
+                  aria-label="Log out"
+                  className="flex h-9 w-9 items-center justify-center rounded-full border border-slate-200 text-slate-500 hover:text-error hover:border-error/40 transition-colors"
+                >
+                  <LogOut size={16} />
+                </button>
+              </div>
+
+              {/* Mobile: toggle */}
               <button
                 type="button"
-                onClick={handleLogout}
-                className="inline-flex items-center gap-1.5 text-sm text-on-surface-variant hover:text-primary transition-colors"
+                onClick={() => setMobileOpen((v) => !v)}
+                aria-label="Toggle menu"
+                className="md:hidden flex h-9 w-9 items-center justify-center rounded-lg text-slate-600 hover:bg-slate-100 transition-colors"
               >
-                <LogOut size={16} />
-                <span className="hidden sm:inline">Logout</span>
+                {mobileOpen ? <X size={20} /> : <Menu size={20} />}
               </button>
             </>
           ) : (
             <>
-              <Link
-                to="/login"
-                className="text-sm text-on-surface-variant hover:text-primary transition-colors"
-              >
-                Log In
-              </Link>
-              <Link
-                to="/register"
-                className="text-sm bg-primary text-on-primary rounded-lg px-4 py-2 font-medium hover:opacity-90 transition-opacity"
-              >
-                Get Started
-              </Link>
+              <nav className="hidden md:flex items-center justify-center gap-6">
+                {PUBLIC_LINKS.map((link) => (
+                  <a
+                    key={link.href}
+                    href={link.href}
+                    className="text-sm text-slate-500 hover:text-primary transition-colors"
+                  >
+                    {link.label}
+                  </a>
+                ))}
+              </nav>
+              <div className="flex items-center gap-2">
+                <Link
+                  to="/login"
+                  className="text-sm text-slate-600 hover:text-primary transition-colors px-2 py-2"
+                >
+                  Log In
+                </Link>
+                <Link
+                  to="/register"
+                  className="text-sm bg-primary text-white rounded-xl px-4 py-2 font-medium hover:bg-primary-container transition-colors"
+                >
+                  Get Started
+                </Link>
+              </div>
             </>
           )}
         </div>
+
+        {/* Mobile: expandable menu */}
+        {isLoggedIn && mobileOpen && (
+          <div className="md:hidden border-t border-slate-200 py-3 space-y-1">
+            {AUTH_LINKS.map(({ to, label, icon: Icon }) => (
+              <Link
+                key={to}
+                to={to}
+                onClick={() => setMobileOpen(false)}
+                className={[
+                  'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                  isActive(to)
+                    ? 'bg-primary/5 text-primary'
+                    : 'text-slate-600 hover:bg-slate-100',
+                ].join(' ')}
+              >
+                <Icon size={18} />
+                {label}
+              </Link>
+            ))}
+            <Link
+              to="/dashboard?upload=1"
+              onClick={() => setMobileOpen(false)}
+              className="flex items-center gap-3 rounded-xl bg-primary px-3 py-2.5 text-sm font-medium text-white"
+            >
+              <Upload size={18} />
+              Upload Report
+            </Link>
+            <Link
+              to="/profile"
+              onClick={() => setMobileOpen(false)}
+              className={[
+                'flex items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium transition-colors',
+                isActive('/profile')
+                  ? 'bg-primary/5 text-primary'
+                  : 'text-slate-600 hover:bg-slate-100',
+              ].join(' ')}
+            >
+              <User size={18} />
+              Profile
+            </Link>
+            <button
+              type="button"
+              onClick={handleLogout}
+              className="flex w-full items-center gap-3 rounded-xl px-3 py-2.5 text-sm font-medium text-slate-600 hover:bg-slate-100 transition-colors"
+            >
+              <LogOut size={18} />
+              Log out
+            </button>
+          </div>
+        )}
       </div>
     </header>
   )

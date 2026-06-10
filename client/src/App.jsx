@@ -12,6 +12,7 @@ import Chat from './pages/Chat'
 import { getAuthToken } from './lib/api'
 
 const Vault = lazy(() => import('./pages/Vault'))
+const Repository = lazy(() => import('./pages/Repository'))
 const DoctorSummary = lazy(() => import('./pages/DoctorSummary'))
 
 function RouteLoader() {
@@ -56,6 +57,16 @@ function AppContent() {
             <ProtectedRoute>
               <Suspense fallback={<RouteLoader />}>
                 <Vault />
+              </Suspense>
+            </ProtectedRoute>
+          }
+        />
+        <Route
+          path="/repository"
+          element={
+            <ProtectedRoute>
+              <Suspense fallback={<RouteLoader />}>
+                <Repository />
               </Suspense>
             </ProtectedRoute>
           }

@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useReactToPrint } from 'react-to-print'
-import { Download, Stethoscope } from 'lucide-react'
+import { Download, Stethoscope, Upload } from 'lucide-react'
 import VitalitySnapshotCard from './VitalitySnapshotCard'
 import MiniCalendarCard from './MiniCalendarCard'
 import NeedsAttentionCard from './NeedsAttentionCard'
@@ -21,6 +21,7 @@ export default function Dashboard({
   history = [],
   activeReportId,
   onSelectReport,
+  onUploadNew,
   insights = null,
   insightsLoading = false,
   insightsError = null,
@@ -80,10 +81,20 @@ export default function Dashboard({
             </h1>
           </div>
           <div className="flex flex-wrap items-center gap-3 self-start sm:self-auto print:hidden">
+            {onUploadNew && (
+              <button
+                type="button"
+                onClick={onUploadNew}
+                className="inline-flex items-center gap-2 bg-teal-700 text-white hover:bg-teal-800 px-4 py-2.5 rounded-xl text-sm font-medium shadow-sm transition-colors"
+              >
+                <Upload size={16} />
+                Upload Report
+              </button>
+            )}
             <button
               type="button"
               onClick={() => navigate('/doctor-summary')}
-              className="inline-flex items-center gap-2 bg-teal-700 text-white hover:bg-teal-800 px-4 py-2.5 rounded-xl text-sm font-medium shadow-sm transition-colors"
+              className="inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 hover:text-teal-700 hover:border-teal-200 px-4 py-2.5 rounded-xl text-sm font-medium shadow-sm transition-colors"
             >
               <Stethoscope size={16} />
               Doctor Summary

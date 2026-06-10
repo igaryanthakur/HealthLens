@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react'
-import { FileText, UploadCloud } from 'lucide-react'
+import { ArrowLeft, FileText, UploadCloud } from 'lucide-react'
 
 const ACCEPTED_TYPES = '.pdf,.jpg,.jpeg,.png'
 
@@ -9,7 +9,7 @@ const DOC_TYPE_OPTIONS = [
   { value: 'prescription', label: 'Prescription' },
 ]
 
-export default function UploadZone({ onFileSelected, error, disabled = false }) {
+export default function UploadZone({ onFileSelected, onCancel, error, disabled = false }) {
   const inputRef = useRef(null)
   const [isDragging, setIsDragging] = useState(false)
   const [documentType, setDocumentType] = useState('auto')
@@ -42,6 +42,18 @@ export default function UploadZone({ onFileSelected, error, disabled = false }) 
   return (
     <div className="min-h-screen bg-background flex items-center justify-center p-6">
       <div className="w-full max-w-xl">
+        {onCancel && (
+          <button
+            type="button"
+            onClick={onCancel}
+            disabled={disabled}
+            className="mb-4 inline-flex items-center gap-2 text-sm font-medium text-on-surface-variant hover:text-primary transition-colors disabled:opacity-50"
+          >
+            <ArrowLeft size={16} />
+            Back to dashboard
+          </button>
+        )}
+
         {error && (
           <div className="mb-4 bg-error-container text-error rounded-xl p-4 text-sm border border-error/20">
             {error}
