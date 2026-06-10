@@ -1,6 +1,11 @@
 const fs = require("fs/promises");
-const { PDFParse } = require("pdf-parse");
+const { ensureCanvasPolyfill } = require("../utils/canvasPolyfill");
 const { extractTextFromImageBuffer } = require("./ocrService");
+
+function getPDFParse() {
+  ensureCanvasPolyfill();
+  return require("pdf-parse").PDFParse;
+}
 
 const PDF_MIN_TEXT_LENGTH = Number(process.env.PDF_MIN_TEXT_LENGTH || 100);
 
@@ -9,6 +14,7 @@ function hasEnoughExtractedText(text = "") {
 }
 
 async function extractDigitalPdfText(filePath) {
+  const PDFParse = getPDFParse();
   const pdfBuffer = await fs.readFile(filePath);
   const parser = new PDFParse({ data: pdfBuffer });
 
@@ -21,6 +27,7 @@ async function extractDigitalPdfText(filePath) {
 }
 
 async function renderPdfPagesToImages(filePath) {
+  const PDFParse = getPDFParse();
   const pdfBuffer = await fs.readFile(filePath);
   const parser = new PDFParse({ data: pdfBuffer });
 

@@ -1,6 +1,6 @@
 # HealthLens AI — Project Context
 
-**Last Updated:** Wednesday, June 10, 2026  
+**Last Updated:** Wednesday, June 10, 2026 (Vercel pdf-parse fix)  
 **Status:** Eval-ready · **203/203** tests · freeze (bug fixes + docs only)
 
 > Contributor and agent reference. For onboarding, start with [README.md](README.md).
@@ -245,6 +245,7 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
+- **2026-06-10:** Vercel runtime fix — lazy-load extraction on upload; `@napi-rs/canvas` polyfill before `pdf-parse`; `includeFiles` for native canvas on `server.js`; explicit `/api` rewrite.
 - **2026-06-10:** Vercel restore — re-applied `createApp.js`, serverless `server.js` export, mongoose connection cache, tmp uploads, `vercel-build` → `public/`; `/health` rewrite to `server.js`; 203 tests.
 - **2026-06-10:** Vercel static deploy fix — `vercel-build` copies `client/dist` → `public/`; removed `outputDirectory` from `vercel.json` (fixes “No entrypoint found in output directory”).
 - **2026-06-10:** Vercel deployment fix — `createApp.js` factory (renamed from `app.js`); `server.js` exports Express for Vercel with DB middleware + `require.main` listen guard; removed broken `api/[...path].js` catch-all; `vercel.json` `maxDuration: 60`; mongoose connection cache + tmp upload dir retained; 203 tests.

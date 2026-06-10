@@ -1,7 +1,6 @@
 const express = require("express");
 const upload = require("../middleware/upload");
 const { protect } = require("../middleware/authMiddleware");
-const { extractMedicalReportText } = require("../services/extractionService");
 const {
   uploadReportFile,
   isCloudinaryEnabled,
@@ -23,6 +22,7 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
   const documentTypeHint = req.body?.documentType;
 
   try {
+    const { extractMedicalReportText } = require("../services/extractionService");
     const { methodUsed, documentType, cleanedText, cleanedTextFull, cleanedTextClinical, structured } =
       await extractMedicalReportText(uploadedFilePath, { documentTypeHint });
 

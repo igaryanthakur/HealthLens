@@ -3,6 +3,10 @@
   "buildCommand": "npm run vercel-build",
   "rewrites": [
     {
+      "source": "/api/(.*)",
+      "destination": "/server.js"
+    },
+    {
       "source": "/health",
       "destination": "/server.js"
     },
@@ -13,7 +17,8 @@
   ],
   "functions": {
     "server.js": {
-      "maxDuration": 60
+      "maxDuration": 60,
+      "includeFiles": "node_modules/@napi-rs/**"
     }
   }
 }
