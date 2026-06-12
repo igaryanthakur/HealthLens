@@ -24,7 +24,11 @@ async function preprocessForVision(input) {
   return image.png().toBuffer();
 }
 
-async function loadPrescriptionImageBuffer(filePath, extension) {
+async function loadPrescriptionImageBuffer(filePath, extension, deps = {}) {
+  if (deps.sourceImageBuffer) {
+    return deps.sourceImageBuffer;
+  }
+
   if (IMAGE_EXTENSIONS.has(extension)) {
     return fs.readFile(filePath);
   }
@@ -73,7 +77,7 @@ async function extractPrescription(filePath, extension, deps = {}) {
   const preprocess = deps.preprocess ?? preprocessForVision;
   const extractVision = deps.extractVision ?? extractPrescriptionFromImage;
 
-  const sourceBuffer = await loadPrescriptionImageBuffer(filePath, ext);
+  const sourceBuffer = await loadPrescriptionImageBuffer(filePath, ext, deps);
   const visionBuffer = await preprocess(sourceBuffer);
   const imageBase64 = visionBuffer.toString("base64");
 
@@ -99,4 +103,5 @@ module.exports = {
   extractPrescription,
   annotateMedications,
   preprocessForVision,
+  loadPrescriptionImageBuffer,
 };

@@ -19,20 +19,38 @@ const DOCUMENT_TYPE_HINTS = new Set([
 
 async function extractMedicalReportText(filePath, opts = {}) {
   const extension = path.extname(filePath).toLowerCase();
+  const deps = opts.deps || {};
+  const extractTextFromPdfFn = deps.extractTextFromPdf || extractTextFromPdf;
+  const extractTextFromImageFn = deps.extractTextFromImage || extractTextFromImage;
+  const extractPrescriptionFn = deps.extractPrescription || extractPrescription;
+  const extractDocumentEntitiesFn = deps.extractDocumentEntities || extractDocumentEntities;
+  const filterClinicalDataFn = deps.filterClinicalData || filterClinicalData;
+
+  const hint = opts.documentTypeHint;
+  const isForcedPrescription = hint === "prescription";
+
   let methodUsed = "unknown";
   let rawText = "";
   let ocrPages = [];
+  let renderedPageBuffers = [];
 
-  if (extension === ".pdf") {
-    const result = await extractTextFromPdf(filePath);
+  if (isForcedPrescription) {
+    methodUsed = "skipped-ocr-forced-vision";
+    rawText = "";
+    ocrPages = [];
+    renderedPageBuffers = [];
+  } else if (extension === ".pdf") {
+    const result = await extractTextFromPdfFn(filePath);
     methodUsed = result.methodUsed;
     rawText = result.rawText;
     ocrPages = result.ocrPages || [];
+    renderedPageBuffers = result.renderedPageBuffers || [];
   } else if ([".jpg", ".jpeg", ".png"].includes(extension)) {
     methodUsed = "image-ocr";
-    const result = await extractTextFromImage(filePath);
+    const result = await extractTextFromImageFn(filePath);
     rawText = result.rawText;
     ocrPages = result.ocrPages || [];
+    renderedPageBuffers = [];
   } else {
     throw new Error("Unsupported file type for extraction.");
   }
@@ -48,7 +66,6 @@ async function extractMedicalReportText(filePath, opts = {}) {
 
   // An explicit user-supplied hint (from the upload UI selector) overrides the
   // deterministic classifier, which is unreliable on handwriting.
-  const hint = opts.documentTypeHint;
   const documentType =
     hint && hint !== "auto" && DOCUMENT_TYPE_HINTS.has(hint)
       ? hint
@@ -62,8 +79,9 @@ async function extractMedicalReportText(filePath, opts = {}) {
   let structured;
   switch (documentType) {
     case "prescription": {
-      structured = await extractPrescription(filePath, extension, {
-        textHint: cleanedTextFull,
+      structured = await extractPrescriptionFn(filePath, extension, {
+        textHint: cleanedTextFull || undefined,
+        sourceImageBuffer: renderedPageBuffers[0] ?? undefined,
       });
       break;
     }
@@ -71,12 +89,12 @@ async function extractMedicalReportText(filePath, opts = {}) {
     case "discharge_summary":
     case "typed_note":
     case "unknown": {
-      structured = await extractDocumentEntities(cleanedTextFull, documentType);
+      structured = await extractDocumentEntitiesFn(cleanedTextFull, documentType);
       break;
     }
     case "lab_report":
     default: {
-      ({ cleanedTextClinical, structured } = filterClinicalData(cleanedTextFull, {
+      ({ cleanedTextClinical, structured } = filterClinicalDataFn(cleanedTextFull, {
         ocrPages,
         stitchedRows,
         sections,

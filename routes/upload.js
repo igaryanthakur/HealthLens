@@ -10,7 +10,7 @@ const logger = require("../utils/logger");
 
 const router = express.Router();
 
-router.post("/", protect, upload.single("report"), async (req, res, next) => {
+async function handleUpload(req, res, next, deps = {}) {
   if (!req.file) {
     return res.status(400).json({
       success: false,
@@ -21,10 +21,43 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
   const uploadedFilePath = req.file.path;
   const documentTypeHint = req.body?.documentType;
 
+  const extractMedicalReportText =
+    deps.extractMedicalReportText ||
+    require("../services/extractionService").extractMedicalReportText;
+  const uploadReportFileFn = deps.uploadReportFile || uploadReportFile;
+  const isCloudinaryEnabledFn = deps.isCloudinaryEnabled || isCloudinaryEnabled;
+  const cleanupFileFn = deps.cleanupFile || cleanupFile;
+
   try {
-    const { extractMedicalReportText } = require("../services/extractionService");
-    const { methodUsed, documentType, cleanedText, cleanedTextFull, cleanedTextClinical, structured } =
-      await extractMedicalReportText(uploadedFilePath, { documentTypeHint });
+    const cloudinaryEnabled = isCloudinaryEnabledFn();
+
+    const extractionPromise = extractMedicalReportText(uploadedFilePath, {
+      documentTypeHint,
+    });
+
+    const storagePromise = cloudinaryEnabled
+      ? uploadReportFileFn(uploadedFilePath, {
+          userId: req.user.id,
+          originalFilename: req.file.originalname,
+          mimeType: req.file.mimetype,
+        })
+          .then((data) => ({ ok: true, data }))
+          .catch((error) => ({ ok: false, error }))
+      : Promise.resolve({ ok: true, data: null });
+
+    const [extractionResult, storageResult] = await Promise.all([
+      extractionPromise,
+      storagePromise,
+    ]);
+
+    const {
+      methodUsed,
+      documentType,
+      cleanedText,
+      cleanedTextFull,
+      cleanedTextClinical,
+      structured,
+    } = extractionResult;
 
     structured.provenance = {
       ...(structured.provenance || {}),
@@ -32,26 +65,22 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
       extractionMethod: structured.provenance?.extractionMethod || methodUsed,
     };
 
-    if (isCloudinaryEnabled()) {
-      try {
-        const fileStorage = await uploadReportFile(uploadedFilePath, {
-          userId: req.user.id,
-          originalFilename: req.file.originalname,
-          mimeType: req.file.mimetype,
-        });
+    if (cloudinaryEnabled && !storageResult.ok) {
+      logger.error("Cloudinary upload failed", {
+        error: storageResult.error.message,
+      });
+      return res.status(503).json({
+        success: false,
+        message:
+          "Report was extracted but file storage is temporarily unavailable. Please try uploading again.",
+      });
+    }
 
-        structured.provenance = {
-          ...structured.provenance,
-          ...fileStorage,
-        };
-      } catch (storageError) {
-        logger.error("Cloudinary upload failed", { error: storageError.message });
-        return res.status(503).json({
-          success: false,
-          message:
-            "Report was extracted but file storage is temporarily unavailable. Please try uploading again.",
-        });
-      }
+    if (storageResult.data) {
+      structured.provenance = {
+        ...structured.provenance,
+        ...storageResult.data,
+      };
     }
 
     logger.info("Extraction completed", {
@@ -115,7 +144,7 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
     return next(error);
   } finally {
     try {
-      await cleanupFile(uploadedFilePath);
+      await cleanupFileFn(uploadedFilePath);
     } catch (cleanupError) {
       logger.warn("Temporary upload cleanup failed", {
         path: uploadedFilePath,
@@ -123,6 +152,11 @@ router.post("/", protect, upload.single("report"), async (req, res, next) => {
       });
     }
   }
-});
+}
+
+router.post("/", protect, upload.single("report"), (req, res, next) =>
+  handleUpload(req, res, next),
+);
 
 module.exports = router;
+module.exports.handleUpload = handleUpload;

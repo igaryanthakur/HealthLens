@@ -1,6 +1,9 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { annotateMedications } = require("../services/prescriptionService");
+const {
+  annotateMedications,
+  loadPrescriptionImageBuffer,
+} = require("../services/prescriptionService");
 
 test("annotateMedications flags drugs missing from the dictionary as uncertain", () => {
   const result = annotateMedications([
@@ -25,4 +28,16 @@ test("annotateMedications preserves the model's own uncertainty flag", () => {
 test("annotateMedications handles an empty list", () => {
   assert.deepEqual(annotateMedications([]), []);
   assert.deepEqual(annotateMedications(), []);
+});
+
+test("loadPrescriptionImageBuffer returns sourceImageBuffer without disk or PDF render", async () => {
+  const reused = Buffer.from("cached-page");
+
+  const result = await loadPrescriptionImageBuffer(
+    "/tmp/should-not-read.pdf",
+    ".pdf",
+    { sourceImageBuffer: reused },
+  );
+
+  assert.equal(result, reused);
 });

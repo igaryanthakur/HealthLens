@@ -66,6 +66,7 @@ async function extractTextFromScannedPdf(filePath) {
   return {
     rawText: pageTexts.join("\n"),
     ocrPages,
+    pageImages,
   };
 }
 
@@ -77,6 +78,7 @@ async function extractTextFromPdf(filePath) {
       methodUsed: "pdf-parse",
       rawText: directText,
       ocrPages: [],
+      renderedPageBuffers: [],
     };
   }
 
@@ -86,6 +88,7 @@ async function extractTextFromPdf(filePath) {
     methodUsed: "pdf-ocr-fallback",
     rawText: ocrResult.rawText,
     ocrPages: ocrResult.ocrPages,
+    renderedPageBuffers: (ocrResult.pageImages || []).map((page) => page.imageBuffer),
   };
 }
 
