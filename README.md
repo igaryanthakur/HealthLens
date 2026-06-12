@@ -12,7 +12,7 @@ Most people store health records as PDFs, lab printouts, and prescriptions in fo
 
 1. **Upload** lab reports and prescriptions (PDF or image)
 2. **Extract** biomarkers and clinical entities with deterministic parsing (numbers are never guessed by AI)
-3. **Interpret** results in plain language via Google Gemini
+3. **Interpret** results in plain language via Groq (Llama 3.3 70B)
 4. **Track** changes over time — trends, alerts, and a personal health timeline
 5. **Remember** medications, diagnoses, and advice across all reports in one **Repository**
 6. **Export** a printable **Doctor Summary** for clinical handoffs
@@ -28,7 +28,8 @@ This is **not** a one-off report summarizer. It builds **longitudinal health int
 
 - [Node.js](https://nodejs.org/) 18+
 - [MongoDB](https://www.mongodb.com/) — local or [Atlas](https://www.mongodb.com/atlas) (`MONGODB_URI`)
-- [Google Gemini API key](https://aistudio.google.com/apikey) — required for AI interpretation, chat, and prescription extraction
+- [Google Gemini API key](https://aistudio.google.com/apikey) — required for prescription Vision (multimodal)
+- [Groq API key](https://console.groq.com/) — required for lab interpretation, chat, and clinical document extraction
 
 ### 1. Clone and install
 
@@ -56,7 +57,8 @@ Edit `.env` — minimum required:
 |----------|-------------|
 | `MONGODB_URI` | MongoDB connection string |
 | `JWT_SECRET` | Secret for auth tokens |
-| `GEMINI_API_KEY` | Google Gemini API key |
+| `GROQ_API_KEY` | Groq API key (interpret, chat, entity docs) |
+| `GEMINI_API_KEY` | Google Gemini API key (prescription Vision only) |
 
 ### 3. Seed demo data (recommended first run)
 
@@ -107,7 +109,7 @@ Register your own account, or use the demo credentials above.
 Upload (PDF/image)
     → Deterministic extraction (pdf-parse / OCR / regex pipeline)
     → Structured JSON (measurements + entities)
-    → Gemini interpretation (plain-language summary)
+    → Groq interpretation (plain-language summary)
     → MongoDB (per-user reports)
     → Dashboard, Repository, Doctor Summary, Chat
 ```
@@ -127,14 +129,14 @@ See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full pipeline, API referenc
 | Database | MongoDB |
 | Auth | JWT, bcrypt |
 | Extraction | pdf-parse, pdfjs-dist, Tesseract.js, sharp |
-| AI | Google Gemini API |
+| AI | Groq (text) + Google Gemini (prescription Vision) |
 
 ---
 
 ## Development
 
 ```bash
-npm test                    # 191 backend unit tests
+npm test                    # 221 backend unit tests
 npm run build --prefix client
 node scripts/qaStage31.mjs  # API smoke (re-seed demo after — see docs/DEMO.md)
 ```

@@ -121,7 +121,7 @@ async function saveDocumentHandler(req, res, deps = {}) {
       symptoms,
       doctorAdvice,
       testsAdvised,
-      provenance: body.provenance || { extractionMethod: "gemini-text" },
+      provenance: body.provenance || { extractionMethod: "groq-text" },
       aiInterpretation: {
         summary: buildDocumentSummary(documentType, {
           medications,

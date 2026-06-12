@@ -15,7 +15,7 @@ const {
   buildDeterministicInsights,
 } = require("../utils/longitudinalInsights");
 const { buildDoctorSummary } = require("../utils/doctorSummaryBuilder");
-const { generateLongitudinalInsights } = require("../services/aiService");
+const { generateLongitudinalInsights } = require("../services/groqService");
 
 const router = express.Router();
 
@@ -123,7 +123,7 @@ async function overviewHandler(req, res, deps = {}) {
 }
 
 // Longitudinal insights need both the user profile and the full report history,
-// so this cannot use makeHandler (which only loads reports). Gemini only rewords
+// so this cannot use makeHandler (which only loads reports). Groq only rewords
 // the deterministic facts; any AI failure (or <2 lab reports) returns the
 // deterministic brief with success:true so the dashboard never breaks.
 async function insightsHandler(req, res, deps = {}) {
@@ -132,7 +132,7 @@ async function insightsHandler(req, res, deps = {}) {
   const generateInsights = deps.generateInsights ?? generateLongitudinalInsights;
   const buildDeterministic = deps.buildDeterministic ?? buildDeterministicInsights;
   // AI wording is opt-in (deterministic is always correct). Enable only when
-  // Gemini is known stable, e.g. for evaluation.
+  // Groq is known stable, e.g. for evaluation.
   const aiEnabled =
     deps.aiEnabled ?? process.env.LONGITUDINAL_AI_ENABLED === "true";
 
@@ -161,7 +161,7 @@ async function insightsHandler(req, res, deps = {}) {
   // the explicit fallback for every AI path below.
   const deterministic = buildDeterministic(context);
 
-  // Skip Gemini when AI is disabled or trend comparison is impossible (<2 labs).
+  // Skip Groq when AI is disabled or trend comparison is impossible (<2 labs).
   let insights = deterministic;
   if (aiEnabled && (context.labReportCount ?? 0) >= 2) {
     try {
@@ -183,7 +183,7 @@ async function insightsHandler(req, res, deps = {}) {
 
 // Doctor Summary (Stage 2.1). Like insights, it needs both the user profile and
 // the full report history, so it cannot use makeHandler. Fully deterministic
-// (no Gemini): the longitudinal insight block is rebuilt via
+// (no Groq): the longitudinal insight block is rebuilt via
 // buildDeterministicInsights. Empty reports still return 200 with a populated
 // patient block and empty arrays.
 async function doctorSummaryHandler(req, res, deps = {}) {

@@ -1,7 +1,7 @@
 # HealthLens AI — Project Context
 
-**Last Updated:** Friday, June 12, 2026 (upload pipeline latency optimization)  
-**Status:** Eval-ready · **214/214** tests · freeze (bug fixes + docs only)
+**Last Updated:** Friday, June 12, 2026 (Groq/Gemini AI provider split)  
+**Status:** Eval-ready · **221/221** tests · freeze (bug fixes + docs only)
 
 > Contributor and agent reference. For onboarding, start with [README.md](README.md).
 
@@ -31,12 +31,12 @@ flowchart LR
   user[User] --> upload[Upload_PDF_or_image]
   upload --> extract[Deterministic_extraction]
   extract --> structured[Structured_JSON]
-  structured --> interpret[Gemini_interpretation]
+  structured --> interpret[Groq_interpretation]
   interpret --> mongo[(MongoDB)]
   mongo --> dash[Dashboard]
   mongo --> repo[Repository]
   mongo --> doc[Doctor_Summary]
-  mongo --> chat[Chat_Assistant]
+  mongo --> chat[Groq_chat]
 ```
 
 **Typical user flow:** Landing (`/`) → register/login → `/dashboard` upload (`POST /api/upload`) → interpret (`POST /api/interpret`) → dashboard with timeline, trends, and insights. Browse history via `/vault`; cross-report rollups at `/repository`; printable export at `/doctor-summary`.
@@ -56,7 +56,7 @@ flowchart LR
 | Database | MongoDB via Mongoose — `MONGODB_URI` in [`config/db.js`](config/db.js) (Atlas or local fallback) |
 | Auth | JWT (`jsonwebtoken`), bcrypt (`bcryptjs`), `protect` middleware |
 | Extraction | pdf-parse, pdfjs-dist, @napi-rs/canvas, tesseract.js, sharp |
-| AI | Google Gemini API (`@google/generative-ai`) |
+| AI | Groq (`groq-sdk`, Llama 3.3 70B) for text; Google Gemini (`@google/generative-ai`) for prescription Vision only |
 | File storage | Cloudinary (`cloudinary`) — optional; authenticated assets + signed Vault download URLs |
 | Rate limiting | express-rate-limit on auth, upload, interpret, chat |
 
@@ -95,7 +95,7 @@ flowchart LR
 | `POST /api/auth/register` | — | Create user; returns JWT |
 | `POST /api/auth/login` | — | Login; returns JWT |
 | `POST /api/upload` | JWT + rate limit | Multer upload (`report`, 10MB, PDF/JPG/JPEG/PNG) + optional `documentType`. Routes to lab pipeline, prescription Vision, or text entity lane |
-| `POST /api/interpret` | JWT + rate limit | Accepts `{ structured }`; profile-aware Gemini prompt; persists Report; fallback save on AI failure |
+| `POST /api/interpret` | JWT + rate limit | Accepts `{ structured }`; profile-aware Groq prompt; persists Report; fallback save on AI failure |
 | `GET /api/reports/history` | JWT | User reports sorted by `reportDate`; includes `vitalityScore` virtual |
 | `GET /api/reports/:id` | JWT | Single report; `400` invalid ObjectId; `403`/`404` as appropriate |
 | `GET /api/reports/:id/file` | JWT | Signed download URL for stored original (Cloudinary); `404` when no file on record |
@@ -117,7 +117,7 @@ flowchart LR
 | `GET /api/repository/insights` | JWT | Longitudinal brief; deterministic-first; AI gated by `LONGITUDINAL_AI_ENABLED` |
 | `GET /api/repository/doctor-summary` | JWT | Deterministic doctor-readable summary (no Gemini) |
 
-**Environment:** See [.env.example](.env.example). Key vars: `MONGODB_URI`, `JWT_SECRET`, `GEMINI_API_KEY`, `LONGITUDINAL_AI_ENABLED`, `GEMINI_VISION_MODEL`, `GEMINI_TEXT_MODEL`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (optional — when unset, uploads extract only with no Vault download).
+**Environment:** See [.env.example](.env.example). Key vars: `MONGODB_URI`, `JWT_SECRET`, `GROQ_API_KEY`, `GROQ_MODEL`, `GEMINI_API_KEY` (Vision only), `LONGITUDINAL_AI_ENABLED`, `GEMINI_VISION_MODEL`, `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` (optional — when unset, uploads extract only with no Vault download).
 
 ---
 
@@ -135,33 +135,36 @@ flowchart TD
   sections --> filter[filterClinicalData]
   filter --> structured[structured_JSON]
   structured --> interpret[POST_api_interpret]
-  interpret --> aiService[aiService]
-  aiService --> gemini[Gemini]
-  gemini --> reportSave[Report.save]
+  interpret --> groqService[groqService]
+  groqService --> reportSave[Report.save]
 ```
 
-**Lab pipeline steps:**
+**AI provider split:** Groq (`llama-3.3-70b-versatile`) handles all text — entity extraction, lab interpretation, chat, longitudinal rewording. Gemini Vision ([`services/geminiVisionService.js`](services/geminiVisionService.js)) handles prescription images only.
 
-1. Upload — [`routes/upload.js`](routes/upload.js)
+**Lab pipeline steps:**
 2. Raw extraction — [`services/extractionService.js`](services/extractionService.js)
 3. Cleanup, stitch, section — [`utils/textCleanup.js`](utils/textCleanup.js), [`utils/rowStitcher.js`](utils/rowStitcher.js), [`services/sectionExtractor.js`](services/sectionExtractor.js)
 4. Clinical extraction — [`utils/clinical/parameterRegexMap.js`](utils/clinical/parameterRegexMap.js) + [`utils/canonicalMap.json`](utils/canonicalMap.json)
 5. Enrichment — [`services/clinicalFilterService.js`](services/clinicalFilterService.js)
-6. AI interpret — [`services/aiService.js`](services/aiService.js) via [`routes/interpret.js`](routes/interpret.js)
+6. AI interpret — [`services/groqService.js`](services/groqService.js) via [`routes/interpret.js`](routes/interpret.js)
 
 **Document routing (three lanes):**
 
 | Lane | Types | Handler |
 |------|-------|---------|
 | Lab | `lab_report` (default) | Deterministic regex pipeline |
-| Prescription | `prescription` | Gemini Vision — [`services/prescriptionService.js`](services/prescriptionService.js) |
-| Entity | `scan_report`, `discharge_summary`, `typed_note`, `unknown` | Gemini text — [`services/documentEntityService.js`](services/documentEntityService.js) |
+| Prescription | `prescription` | Gemini Vision — [`services/geminiVisionService.js`](services/geminiVisionService.js) → [`prescriptionService.js`](services/prescriptionService.js) |
+| Entity | `scan_report`, `discharge_summary`, `typed_note`, `unknown` | Groq text — [`services/groqService.js`](services/groqService.js) → [`documentEntityService.js`](services/documentEntityService.js) |
 
 **Upload latency optimizations** ([`services/extractionService.js`](services/extractionService.js), [`routes/upload.js`](routes/upload.js)):
 
 - Explicit UI hint `prescription` skips pdf-parse/Tesseract (`skipped-ocr-forced-vision`) and routes straight to Vision.
 - Cloudinary upload runs concurrently with extraction when `CLOUDINARY_*` is set; 503 unchanged if storage fails after extraction.
 - Scanned-PDF OCR fallback reuses rendered page buffers for the Vision lane (avoids duplicate `renderPdfPagesToImages`).
+
+**Dashboard report switcher:** Prescriptions are excluded from “Your Reports” / mini-calendar selection (`getDashboardSelectableHistory`); auto-select and post-save navigation resolve to the latest lab report. Repository/Vault still surface prescription data.
+
+**Auto documentType fallback** ([`services/reportClassifier.js`](services/reportClassifier.js)): when keyword scoring finds no match, any lab-panel token → `lab_report`; otherwise non-empty text → `prescription` (routes handwritten scripts to Vision instead of `unknown`/text lane).
 
 User reviews extracted entities before save (`ReviewExtraction` → `POST /api/documents` or `/api/prescriptions`).
 
@@ -194,7 +197,7 @@ Repository rollups are **computed on read** (no separate collection) via [`utils
 | Entry | `server.js`, `createApp.js`, `routes/*.js`, `config/db.js` |
 | Auth | `middleware/authMiddleware.js`, `middleware/rateLimiters.js`, `routes/auth.js` |
 | Extraction | `services/extractionService.js`, `services/clinicalFilterService.js`, `utils/clinical/` |
-| AI | `services/aiService.js`, `utils/aiContextGenerator.js`, `utils/profileContextBuilder.js`, `utils/chatContextBuilder.js` |
+| AI | `services/groqService.js`, `services/geminiVisionService.js`, `utils/aiHelpers.js`, `utils/aiContextGenerator.js`, `utils/profileContextBuilder.js`, `utils/chatContextBuilder.js` |
 | Repository | `routes/repository.js`, `utils/repositoryAggregator.js`, `utils/timelineBuilder.js`, `utils/longitudinalInsights.js`, `utils/doctorSummaryBuilder.js` |
 | File storage | `config/cloudinary.js`, `services/cloudinaryService.js` |
 | Demo | `scripts/seedDemoPatient.js`, `scripts/demoPatientData.js`, `scripts/qaStage31.mjs` |
@@ -221,7 +224,7 @@ Repository rollups are **computed on read** (no separate collection) via [`utils
 
 | Gate | Command | Expected |
 |------|---------|----------|
-| Unit tests | `npm test` | **214/214** passing |
+| Unit tests | `npm test` | **221/221** passing |
 | Frontend build | `npm run build --prefix client` | Green |
 | API smoke | `node scripts/qaStage31.mjs` | P0: 0 (destructive — re-seed demo after) |
 
@@ -234,7 +237,7 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 | Milestone | Summary |
 |-----------|---------|
 | Extraction MVP + clinical pipeline | Deterministic PDF/OCR → structured measurements |
-| Gemini interpretation + MongoDB | Persist reports; JWT auth; user-scoped routes |
+| Groq interpretation + MongoDB | Persist reports; JWT auth; user-scoped routes |
 | React app + Dashboard | Upload flow, trends, vitality, Vault, Chat |
 | Prescription Vision + entity lanes | Review-then-save for non-lab documents |
 | Personal Health Repository (backend) | Cross-report rollups + timeline API |
@@ -252,6 +255,8 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
+- **2026-06-12:** Groq/Gemini split — Groq (`llama-3.3-70b-versatile`) for entity extraction, lab interpret, chat, longitudinal AI; Gemini isolated to prescription Vision (`geminiVisionService.js`); `utils/aiHelpers.js` + JSON fence stripping; 221 tests.
+- **2026-06-12:** Dashboard excludes prescriptions from report switcher/calendar; auto `classifyDocumentType` fallback routes non-lab OCR to prescription; 216 tests.
 - **2026-06-12:** Upload pipeline latency — prescription UI hint short-circuits OCR; Cloudinary upload runs in parallel with extraction; PDF OCR fallback page buffers reused for Vision; `handleUpload` exported for route tests; 214 tests.
 - **2026-06-12:** Eval-prep dead UI cleanup — removed unwired Biometric/SSO blocks, forgot-password, and remember-me from Login/Register; wired auth footers to `/privacy`, `/terms`, `/contact`; removed dead Chat menu/attach and Vault Filter buttons; Landing honest CTA + copy; Dashboard print label fix; `NotFound` catch-all route; `MiniCalendarCard` non-event days as static spans. Client build green; 207 tests unchanged.
 - **2026-06-10:** Vercel 250MB fix — removed `api/.deps/` full-package staging; single-string `includeFiles` glob for untraced PDF/OCR/native assets (~8MB, not full packages).

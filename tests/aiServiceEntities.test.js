@@ -1,32 +1,29 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { extractEntitiesFromText } = require("../services/aiService");
+const { extractEntitiesFromText } = require("../services/groqService");
 
-function createFakeModel(jsonPayload, capture) {
-  return {
-    generateContent: async (request) => {
-      if (capture) capture.request = request;
-      return {
-        response: { text: () => JSON.stringify(jsonPayload) },
-      };
-    },
+function createFakeCompletion(jsonPayload, capture) {
+  return async ({ messages }) => {
+    if (capture) capture.messages = messages;
+    return {
+      choices: [{ message: { content: JSON.stringify(jsonPayload) } }],
+    };
   };
 }
 
-test("sends the document text as a text part", async () => {
+test("sends the document text in the user message", async () => {
   const capture = {};
   await extractEntitiesFromText("Patient prescribed Amoxicillin 500mg", {
-    getModel: () => createFakeModel({ medications: [] }, capture),
+    createCompletion: createFakeCompletion({ medications: [] }, capture),
   });
 
-  const textPart = capture.request.contents[0].parts.find((p) => p.text);
-  assert.ok(textPart, "expected a text part");
-  assert.match(textPart.text, /Amoxicillin 500mg/);
+  const userMessage = capture.messages.find((m) => m.role === "user")?.content ?? "";
+  assert.match(userMessage, /Amoxicillin 500mg/);
 });
 
 test("normalizes missing arrays in the model response", async () => {
   const result = await extractEntitiesFromText("text", {
-    getModel: () => createFakeModel({ diagnoses: [{ condition: "Asthma" }] }),
+    createCompletion: createFakeCompletion({ diagnoses: [{ condition: "Asthma" }] }),
   });
 
   assert.deepEqual(result.medications, []);
@@ -38,9 +35,26 @@ test("normalizes missing arrays in the model response", async () => {
 
 test("returns symptoms when present", async () => {
   const result = await extractEntitiesFromText("text", {
-    getModel: () =>
-      createFakeModel({ symptoms: [{ description: "Persistent cough", confidence: 0.7 }] }),
+    createCompletion: createFakeCompletion({
+      symptoms: [{ description: "Persistent cough", confidence: 0.7 }],
+    }),
   });
 
   assert.equal(result.symptoms[0].description, "Persistent cough");
+});
+
+test("parseJsonResponse handles markdown-wrapped entity JSON", async () => {
+  const result = await extractEntitiesFromText("text", {
+    createCompletion: async () => ({
+      choices: [
+        {
+          message: {
+            content: '```json\n{"medications":[{"name":"Dolo"}]}\n```',
+          },
+        },
+      ],
+    }),
+  });
+
+  assert.equal(result.medications[0].name, "Dolo");
 });

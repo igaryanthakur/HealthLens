@@ -1,4 +1,4 @@
-const { extractEntitiesFromText } = require("./aiService");
+const { extractEntitiesFromText } = require("./groqService");
 const { annotateMedications } = require("./prescriptionService");
 
 // Maps a documentType to the legacy `reportType` slot so the rest of the
@@ -35,7 +35,7 @@ async function extractDocumentEntities(cleanedText, documentType, deps = {}) {
     doctorAdvice: extracted.doctorAdvice || [],
     testsAdvised: extracted.testsAdvised || [],
     provenance: {
-      extractionMethod: "gemini-text",
+      extractionMethod: "groq-text",
     },
   };
 }

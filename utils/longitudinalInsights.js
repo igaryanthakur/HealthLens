@@ -1,7 +1,7 @@
 // Longitudinal health intelligence (Stage 1.2).
 //
-// Pure, deterministic logic over a user's report history. No Gemini here: the AI
-// layer (services/aiService.js) only rewords the deterministic facts produced
+// Pure, deterministic logic over a user's report history. No Groq here: the AI
+// layer (services/groqService.js) only rewords the deterministic facts produced
 // here, and falls back to buildDeterministicInsights() when it is unavailable.
 //
 // Mirrors client/src/lib/trends.js conceptually but stays backend-only; do NOT

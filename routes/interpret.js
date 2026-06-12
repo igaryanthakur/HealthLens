@@ -1,7 +1,7 @@
 const express = require("express");
 const { generateClinicalSummaryPrompt } = require("../utils/aiContextGenerator");
 const { buildProfileContext } = require("../utils/profileContextBuilder");
-const { generateInterpretation } = require("../services/aiService");
+const { generateInterpretation } = require("../services/groqService");
 const Report = require("../models/Report");
 const User = require("../models/User");
 const { protect } = require("../middleware/authMiddleware");

@@ -1,7 +1,7 @@
 const fs = require("fs/promises");
 const path = require("path");
 const sharp = require("sharp");
-const { extractPrescriptionFromImage } = require("./aiService");
+const { extractPrescriptionFromImage } = require("./geminiVisionService");
 const { renderPdfPagesToImages } = require("./pdfService");
 const { validateDrugName } = require("../utils/clinical/drugDictionary");
 

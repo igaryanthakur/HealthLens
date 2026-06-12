@@ -2,7 +2,7 @@ const express = require("express");
 const Report = require("../models/Report");
 const User = require("../models/User");
 const { protect } = require("../middleware/authMiddleware");
-const { generateChatResponse } = require("../services/aiService");
+const { generateChatResponse } = require("../services/groqService");
 const { buildBoundedChatHistory } = require("../utils/chatContextBuilder");
 
 const router = express.Router();

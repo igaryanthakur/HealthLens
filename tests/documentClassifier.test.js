@@ -30,13 +30,24 @@ test("classifies a discharge summary by admission tokens", () => {
   assert.equal(result.documentType, "discharge_summary");
 });
 
-test("returns unknown for empty or non-medical text", () => {
+test("returns unknown for empty text", () => {
   assert.equal(classifyDocumentType("").documentType, "unknown");
-  assert.equal(classifyDocumentType("the quick brown fox jumps").documentType, "unknown");
+});
+
+test("auto fallback classifies non-lab text as prescription", () => {
+  assert.equal(
+    classifyDocumentType("the quick brown fox jumps").documentType,
+    "prescription",
+  );
+});
+
+test("auto fallback classifies illegible OCR without lab tokens as prescription", () => {
+  const result = classifyDocumentType("Dr Kumar\nPatient Name\nsome scribble lines");
+  assert.equal(result.documentType, "prescription");
 });
 
 test("word-boundary guards avoid false positives for short tokens", () => {
   // 'od', 'bd', 'rx' should not match inside ordinary words like 'good'.
   const result = classifyDocumentType("a good food story about a body");
-  assert.equal(result.documentType, "unknown");
+  assert.equal(result.documentType, "prescription");
 });

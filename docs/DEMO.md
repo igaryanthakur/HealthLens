@@ -1,14 +1,15 @@
 # HealthLens AI — Evaluation Demo Guide
 
-**Last updated:** June 10, 2026 (Stage 3.3)
+**Last updated:** June 12, 2026 (Groq/Gemini AI split)
 
 ## Prerequisites
 
 - `npm install` completed in the project root
 - **MongoDB Atlas** (or local) — set `MONGODB_URI` in `.env` (falls back to `mongodb://localhost:27017/healthlens` if unset)
 - `JWT_SECRET` set in `.env`
-- **Recommended for eval:** `LONGITUDINAL_AI_ENABLED=false` — dashboard insights use the deterministic brief (strong for Priya's narrative; no Gemini stall)
-- `GEMINI_API_KEY` optional for seed; **required at demo time** only if you show Chat or live upload interpretation
+- **Recommended for eval:** `LONGITUDINAL_AI_ENABLED=false` — dashboard insights use the deterministic brief (strong for Priya's narrative; no Groq stall)
+- `GROQ_API_KEY` optional for seed; **required at demo time** for Chat and live lab interpretation
+- `GEMINI_API_KEY` optional for seed; **required at demo time** only if you show live prescription upload (Vision)
 - **Optional for Vault download:** `CLOUDINARY_CLOUD_NAME`, `CLOUDINARY_API_KEY`, `CLOUDINARY_API_SECRET` — when set, live uploads store originals and Vault shows a download button; seeded demo reports have no stored files
 - Run with **`npm run dev`** (backend `:5000` + frontend `:5173`) — do not use preview-only for full-stack demo
 
@@ -100,7 +101,7 @@ Dates span **Jan–Jun 2026**. Prefer the **Recent Records** list on the calenda
 
 ## Chat assistant note
 
-Chat (`/api/chat`) uses **live Gemini** at demo time. Seeded data powers bounded context.
+Chat (`/api/chat`) uses **live Groq** at demo time. Seeded data powers bounded context.
 
 **Fallback if chat returns 503:**
 
@@ -152,7 +153,7 @@ Memorize or print this flow.
 
 - Ask: **"What medicines am I taking?"**
 - Ask: **"What changed since my last lab report?"**
-- If Gemini fails, use fallback line above.
+- If AI is unavailable, use fallback line above.
 
 ### Act 8 — Safety close (15 sec)
 
@@ -164,7 +165,7 @@ Memorize or print this flow.
 
 - **Before evaluation:** `RESET_DEMO_PASSWORD=true npm run seed:demo` once; confirm `LONGITUDINAL_AI_ENABLED=false`
 - **During demo:** optional live upload for extraction wow moment (Navbar Upload)
-- **If Gemini fails:** seeded data + deterministic insights still power the full story
+- **If AI fails:** seeded data + deterministic insights still power the full story
 - **Freeze after 3.3:** bug fixes and copy only — no new features
 
 ## Environment quick reference
@@ -174,6 +175,7 @@ Memorize or print this flow.
 | `MONGODB_URI` | Atlas (same as eval environment) |
 | `JWT_SECRET` | Set |
 | `LONGITUDINAL_AI_ENABLED` | `false` |
-| `GEMINI_API_KEY` | Set if showing Chat or live interpret |
+| `GROQ_API_KEY` | Set if showing Chat or live lab interpret |
+| `GEMINI_API_KEY` | Set if showing live prescription upload (Vision) |
 | `CLOUDINARY_*` | Set if demoing Vault download of uploaded originals |
 | Run mode | `npm run dev` |

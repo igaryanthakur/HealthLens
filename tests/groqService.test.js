@@ -1,5 +1,15 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
+const { cleanJsonResponse, parseJsonResponse } = require("../utils/aiHelpers");
+
+test("cleanJsonResponse strips markdown json fences", () => {
+  const raw = '```json\n{"summary":"ok"}\n```';
+  assert.equal(cleanJsonResponse(raw), '{"summary":"ok"}');
+});
+
+test("parseJsonResponse parses fenced JSON", () => {
+  assert.deepEqual(parseJsonResponse('```\n{"a":1}\n```'), { a: 1 });
+});
 
 const mockResponse = {
   summary: "Overall health looks good with one area to watch.",
@@ -13,11 +23,22 @@ const mockResponse = {
   recommendations: ["Spend 15 minutes in morning sunlight daily."],
 };
 
-test("generateInterpretation throws when GEMINI_API_KEY is missing", async () => {
-  const originalKey = process.env.GEMINI_API_KEY;
-  delete process.env.GEMINI_API_KEY;
+function createFakeCompletion(jsonPayload, capture) {
+  return async ({ messages }) => {
+    if (capture) capture.messages = messages;
+    const content =
+      typeof jsonPayload === "string" ? jsonPayload : JSON.stringify(jsonPayload);
+    return {
+      choices: [{ message: { content } }],
+    };
+  };
+}
 
-  const { generateInterpretation } = require("../services/aiService");
+test("generateInterpretation throws when GROQ_API_KEY is missing", async () => {
+  const originalKey = process.env.GROQ_API_KEY;
+  delete process.env.GROQ_API_KEY;
+
+  const { generateInterpretation } = require("../services/groqService");
 
   await assert.rejects(
     () => generateInterpretation("MEDICAL REPORT CONTEXT:\n- Report Type: CBC"),
@@ -25,25 +46,17 @@ test("generateInterpretation throws when GEMINI_API_KEY is missing", async () =>
   );
 
   if (originalKey !== undefined) {
-    process.env.GEMINI_API_KEY = originalKey;
+    process.env.GROQ_API_KEY = originalKey;
   }
 });
 
-test("generateInterpretation returns parsed JSON on successful Gemini call", async () => {
-  const { generateInterpretation } = require("../services/aiService");
-
-  const mockModel = {
-    generateContent: async () => ({
-      response: {
-        text: () => JSON.stringify(mockResponse),
-      },
-    }),
-  };
+test("generateInterpretation returns parsed JSON on successful Groq call", async () => {
+  const { generateInterpretation } = require("../services/groqService");
 
   const result = await generateInterpretation(
     "MEDICAL REPORT CONTEXT:\n- Report Type: CBC",
     {
-      getModel: () => mockModel,
+      createCompletion: createFakeCompletion(mockResponse),
     },
   );
 
@@ -53,72 +66,56 @@ test("generateInterpretation returns parsed JSON on successful Gemini call", asy
 });
 
 test("generateInterpretation prepends profile context when provided", async () => {
-  const { generateInterpretation } = require("../services/aiService");
+  const { generateInterpretation } = require("../services/groqService");
 
-  let capturedText = "";
-  const mockModel = {
-    generateContent: async ({ contents }) => {
-      capturedText = contents[0].parts[0].text;
-      return {
-        response: {
-          text: () => JSON.stringify(mockResponse),
-        },
-      };
-    },
-  };
-
+  const capture = {};
   const profileContext =
     "You are HealthLens AI, a clinical analysis assistant. You are analyzing a medical report for a patient with the following profile: Age: 35, Gender: Male, BMI: 24.0, Chronic Conditions: None, Lifestyle: Smoking: Never, Alcohol: None. Tailor your summary, biomarker analysis, and recommendations specifically to this patient's baseline context.";
 
   await generateInterpretation("MEDICAL REPORT CONTEXT:\n- Report Type: CBC", {
-    getModel: () => mockModel,
+    createCompletion: createFakeCompletion(mockResponse, capture),
     profileContext,
   });
 
-  assert.match(capturedText, /^You are HealthLens AI, a clinical analysis assistant/);
-  assert.match(capturedText, /Here is the structured medical data to interpret:/);
-  assert.match(capturedText, /MEDICAL REPORT CONTEXT:\n- Report Type: CBC/);
+  const userMessage = capture.messages.find((m) => m.role === "user")?.content ?? "";
+  assert.match(userMessage, /^You are HealthLens AI, a clinical analysis assistant/);
+  assert.match(userMessage, /Here is the structured medical data to interpret:/);
+  assert.match(userMessage, /MEDICAL REPORT CONTEXT:\n- Report Type: CBC/);
 });
 
-test("generateChatResponse returns plain text on successful Gemini call", async () => {
-  const { generateChatResponse } = require("../services/aiService");
+test("generateChatResponse returns plain text on successful Groq call", async () => {
+  const { generateChatResponse } = require("../services/groqService");
 
   const profile = { gender: "female", dateOfBirth: "1990-01-01" };
   const history = [{ reportType: "CBC", reportDate: "2026-04-25", measurements: [] }];
-
-  let capturedMessage = "";
-  const mockModel = {
-    generateContent: async (userMessage) => {
-      capturedMessage = userMessage;
-      return {
-        response: {
-          text: () => "  Your triglycerides were 165 mg/dL.  ",
-        },
-      };
-    },
-  };
+  const capture = {};
 
   const result = await generateChatResponse(
     "What are my lipids?",
     profile,
     history,
     {
-      getModel: (systemInstruction) => {
-        assert.match(systemInstruction, /Patient Profile:/);
-        assert.match(systemInstruction, /"gender":"female"/);
-        assert.match(systemInstruction, /Medical History \(Chronological\):/);
-        assert.match(systemInstruction, /"reportType":"CBC"/);
-        return mockModel;
+      createCompletion: async ({ messages }) => {
+        capture.messages = messages;
+        return {
+          choices: [{ message: { content: "  Your triglycerides were 165 mg/dL.  " } }],
+        };
       },
     },
   );
 
-  assert.equal(capturedMessage, "What are my lipids?");
+  const userMessage = capture.messages.find((m) => m.role === "user")?.content ?? "";
+  const systemMessage = capture.messages.find((m) => m.role === "system")?.content ?? "";
+  assert.equal(userMessage, "What are my lipids?");
+  assert.match(systemMessage, /Patient Profile:/);
+  assert.match(systemMessage, /"gender":"female"/);
+  assert.match(systemMessage, /Medical History \(Chronological\):/);
+  assert.match(systemMessage, /"reportType":"CBC"/);
   assert.equal(result, "Your triglycerides were 165 mg/dL.");
 });
 
 test("isRetryableAiError returns true for 503 and timeout messages", () => {
-  const { isRetryableAiError } = require("../services/aiService");
+  const { isRetryableAiError } = require("../utils/aiHelpers");
 
   assert.equal(isRetryableAiError({ status: 503 }), true);
   assert.equal(isRetryableAiError({ statusCode: 429 }), true);
@@ -128,7 +125,7 @@ test("isRetryableAiError returns true for 503 and timeout messages", () => {
 });
 
 test("callWithSingleRetry retries once on retryable error", async () => {
-  const { callWithSingleRetry } = require("../services/aiService");
+  const { callWithSingleRetry } = require("../utils/aiHelpers");
 
   let attempts = 0;
   const result = await callWithSingleRetry(async () => {
@@ -146,7 +143,7 @@ test("callWithSingleRetry retries once on retryable error", async () => {
 });
 
 test("callWithSingleRetry does not retry non-retryable errors", async () => {
-  const { callWithSingleRetry } = require("../services/aiService");
+  const { callWithSingleRetry } = require("../utils/aiHelpers");
 
   let attempts = 0;
   await assert.rejects(
@@ -164,7 +161,7 @@ test("callWithSingleRetry does not retry non-retryable errors", async () => {
 });
 
 test("generateLongitudinalInsights parses and normalizes strict JSON", async () => {
-  const { generateLongitudinalInsights } = require("../services/aiService");
+  const { generateLongitudinalInsights } = require("../services/groqService");
 
   const aiPayload = {
     summary: "HbA1c is trending down but remains above target.",
@@ -177,35 +174,28 @@ test("generateLongitudinalInsights parses and normalizes strict JSON", async () 
     disclaimer: "Informational only.",
   };
 
-  let capturedText = "";
-  const mockModel = {
-    generateContent: async ({ contents }) => {
-      capturedText = contents[0].parts[0].text;
-      return { response: { text: () => JSON.stringify(aiPayload) } };
-    },
-  };
-
+  const capture = {};
   const result = await generateLongitudinalInsights(
     { comparisons: { changedMarkers: [] }, labReportCount: 2 },
-    { getModel: () => mockModel },
+    {
+      createCompletion: createFakeCompletion(aiPayload, capture),
+    },
   );
 
   assert.equal(result.summary, aiPayload.summary);
   assert.deepEqual(result.improvingSignals, ["HbA1c improving"]);
   assert.equal(result.generatedBy, "ai");
-  assert.match(capturedText, /structured health history/);
+  const userMessage = capture.messages.find((m) => m.role === "user")?.content ?? "";
+  assert.match(userMessage, /structured health history/);
 });
 
 test("generateLongitudinalInsights coerces missing lists and disclaimer", async () => {
-  const { generateLongitudinalInsights } = require("../services/aiService");
+  const { generateLongitudinalInsights } = require("../services/groqService");
 
-  const mockModel = {
-    generateContent: async () => ({
-      response: { text: () => JSON.stringify({ summary: "ok" }) },
-    }),
-  };
-
-  const result = await generateLongitudinalInsights({}, { getModel: () => mockModel });
+  const result = await generateLongitudinalInsights(
+    {},
+    { createCompletion: createFakeCompletion({ summary: "ok" }) },
+  );
 
   assert.deepEqual(result.whatChanged, []);
   assert.deepEqual(result.riskFlags, []);
@@ -214,33 +204,32 @@ test("generateLongitudinalInsights coerces missing lists and disclaimer", async 
 });
 
 test("generateLongitudinalInsights throws a clean error on malformed JSON", async () => {
-  const { generateLongitudinalInsights } = require("../services/aiService");
-
-  const mockModel = {
-    generateContent: async () => ({ response: { text: () => "not json" } }),
-  };
+  const { generateLongitudinalInsights } = require("../services/groqService");
 
   await assert.rejects(
-    () => generateLongitudinalInsights({}, { getModel: () => mockModel }),
+    () =>
+      generateLongitudinalInsights(
+        {},
+        { createCompletion: createFakeCompletion("not json") },
+      ),
     { message: "Failed to generate longitudinal insights." },
   );
 });
 
-test("longitudinal model system instruction carries safety language", () => {
-  const aiService = require("../services/aiService");
-  // The exported safety constant is reused in the model builder + route fallback.
+test("longitudinal insights disclaimer matches safety language", () => {
+  const { generateLongitudinalInsights } = require("../services/groqService");
   assert.match(
     require("../utils/longitudinalInsights").INSIGHTS_DISCLAIMER,
     /does not diagnose, prescribe treatment, or replace professional medical advice/,
   );
-  assert.equal(typeof aiService.generateLongitudinalInsights, "function");
+  assert.equal(typeof generateLongitudinalInsights, "function");
 });
 
-test("generateChatResponse throws when GEMINI_API_KEY is missing", async () => {
-  const originalKey = process.env.GEMINI_API_KEY;
-  delete process.env.GEMINI_API_KEY;
+test("generateChatResponse throws when GROQ_API_KEY is missing", async () => {
+  const originalKey = process.env.GROQ_API_KEY;
+  delete process.env.GROQ_API_KEY;
 
-  const { generateChatResponse } = require("../services/aiService");
+  const { generateChatResponse } = require("../services/groqService");
 
   await assert.rejects(
     () => generateChatResponse("Hi", {}, []),
@@ -248,6 +237,13 @@ test("generateChatResponse throws when GEMINI_API_KEY is missing", async () => {
   );
 
   if (originalKey !== undefined) {
-    process.env.GEMINI_API_KEY = originalKey;
+    process.env.GROQ_API_KEY = originalKey;
   }
+});
+
+test("aiService barrel re-exports groq and vision entry points", () => {
+  const aiService = require("../services/aiService");
+  assert.equal(typeof aiService.generateInterpretation, "function");
+  assert.equal(typeof aiService.extractPrescriptionFromImage, "function");
+  assert.equal(typeof aiService.extractEntitiesFromText, "function");
 });

@@ -15,7 +15,12 @@ import {
   interpretStructured,
   saveReviewedDocument,
 } from '../lib/api'
-import { APP_STATE, normalizeStructured, reportToDashboardPayload } from '../lib/structured'
+import {
+  APP_STATE,
+  getDashboardSelectableHistory,
+  normalizeStructured,
+  reportToDashboardPayload,
+} from '../lib/structured'
 
 // Cache signature derived from the report set. Cached insights are reused only
 // when this matches current history, so a re-seed / cross-tab Atlas edit / new
@@ -117,18 +122,22 @@ export default function Dashboard() {
     // Don't auto-resolve to a report while the user is intentionally uploading.
     if (uploadMode) return
 
-    if (history.length === 0) {
+    const selectableHistory = getDashboardSelectableHistory(history)
+
+    if (selectableHistory.length === 0) {
       setDashboardData(null)
       setAppState(APP_STATE.IDLE)
       return
     }
 
     const selected = reportId
-      ? history.find((r) => String(r._id) === reportId)
-      : history[history.length - 1]
+      ? selectableHistory.find((r) => String(r._id) === reportId)
+      : selectableHistory[selectableHistory.length - 1]
 
-    if (selected) {
-      setDashboardData(reportToDashboardPayload(selected))
+    const resolved = selected ?? selectableHistory[selectableHistory.length - 1]
+
+    if (resolved) {
+      setDashboardData(reportToDashboardPayload(resolved))
       setAppState(APP_STATE.RESOLVED)
       setError(null)
     } else if (reportId) {
@@ -207,7 +216,13 @@ export default function Dashboard() {
       const reports = await loadHistory()
       loadInsights(reports, { force: true })
       setReviewData(null)
-      setSearchParams({ reportId: json.reportId })
+      // Prescriptions belong in Repository/Vault — return to the latest lab dashboard view.
+      const savedIsPrescription = payload?.documentType === 'prescription'
+      if (savedIsPrescription) {
+        setSearchParams({})
+      } else {
+        setSearchParams({ reportId: json.reportId })
+      }
     } catch (err) {
       setError(err.message || 'Failed to save the document. Please try again.')
     } finally {

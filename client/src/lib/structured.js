@@ -19,6 +19,11 @@ export function normalizeStructured(structured) {
   }
 }
 
+/** Lab and entity reports shown in the dashboard switcher; prescriptions live in Repository/Vault. */
+export function getDashboardSelectableHistory(history = []) {
+  return history.filter((r) => r.documentType !== 'prescription')
+}
+
 export function reportToDashboardPayload(report) {
   return {
     _id: report._id,

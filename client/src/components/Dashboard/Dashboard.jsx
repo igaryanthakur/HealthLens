@@ -11,6 +11,7 @@ import TrendAnalyticsCard from './TrendAnalyticsCard'
 import BiomarkerGrid from './BiomarkerGrid'
 import DocumentEntitiesCard from './DocumentEntitiesCard'
 import TimelineSelector from './TimelineSelector'
+import { getDashboardSelectableHistory } from '../../lib/structured'
 
 function getActiveReport(history, activeReportId) {
   return history.find((r) => String(r._id) === String(activeReportId)) || null
@@ -53,6 +54,7 @@ export default function Dashboard({
   const documentType = payload.structured?.documentType
   const isEntityDocument = Boolean(documentType) && documentType !== 'lab_report'
 
+  const selectableHistory = getDashboardSelectableHistory(history)
   const activeReport = getActiveReport(history, activeReportId)
   const labReportCount = history.filter(
     (r) => !r.documentType || r.documentType === 'lab_report',
@@ -112,7 +114,7 @@ export default function Dashboard({
 
         {/* Report switcher */}
         <TimelineSelector
-          history={history}
+          history={selectableHistory}
           activeReportId={activeReportId}
           onSelectReport={onSelectReport}
         />
@@ -127,7 +129,7 @@ export default function Dashboard({
               className="lg:col-span-2"
             />
             <MiniCalendarCard
-              history={history}
+              history={selectableHistory}
               onSelectReport={onSelectReport}
               className="lg:col-span-1"
             />

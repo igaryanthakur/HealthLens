@@ -32,7 +32,7 @@ test("maps each entity documentType to its reportType label", async () => {
     assert.equal(structured.reportType, reportType);
     assert.equal(structured.reportType, REPORT_TYPE_BY_DOCUMENT[documentType]);
     assert.deepEqual(structured.measurements, []);
-    assert.equal(structured.provenance.extractionMethod, "gemini-text");
+    assert.equal(structured.provenance.extractionMethod, "groq-text");
   }
 });
 

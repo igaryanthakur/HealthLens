@@ -121,10 +121,25 @@ function classifyDocumentType(text = "") {
     return 0;
   });
 
-  return {
-    documentType: scores[0]?.type || "unknown",
-    scores,
-  };
+  if (scores.length > 0) {
+    return {
+      documentType: scores[0].type,
+      scores,
+    };
+  }
+
+  // Auto fallback: any lab-panel rubric → lab_report; otherwise treat as prescription
+  // (handwritten scripts often fail keyword rules after OCR).
+  const hasLabToken = LAB_TOKENS.some((token) => tokenMatches(lower, token));
+  if (hasLabToken) {
+    return { documentType: "lab_report", scores: [] };
+  }
+
+  if (text.trim()) {
+    return { documentType: "prescription", scores: [] };
+  }
+
+  return { documentType: "unknown", scores: [] };
 }
 
 module.exports = {

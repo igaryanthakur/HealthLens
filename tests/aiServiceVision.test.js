@@ -1,6 +1,6 @@
 const test = require("node:test");
 const assert = require("node:assert/strict");
-const { extractPrescriptionFromImage } = require("../services/aiService");
+const { extractPrescriptionFromImage } = require("../services/geminiVisionService");
 
 function createFakeModel(jsonPayload, capture) {
   return {
@@ -54,4 +54,18 @@ test("normalizes missing arrays in the model response", async () => {
   assert.deepEqual(result.doctorAdvice, []);
   assert.deepEqual(result.testsAdvised, []);
   assert.equal(result.medications[0].name, "Dolo");
+});
+
+test("extractPrescriptionFromImage throws when GEMINI_API_KEY is missing", async () => {
+  const originalKey = process.env.GEMINI_API_KEY;
+  delete process.env.GEMINI_API_KEY;
+
+  await assert.rejects(
+    () => extractPrescriptionFromImage("X", "image/png"),
+    { message: "Failed to read prescription image." },
+  );
+
+  if (originalKey !== undefined) {
+    process.env.GEMINI_API_KEY = originalKey;
+  }
 });
