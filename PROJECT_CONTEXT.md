@@ -200,7 +200,7 @@ Repository rollups are **computed on read** (no separate collection) via [`utils
 | AI | `services/groqService.js`, `services/geminiVisionService.js`, `utils/aiHelpers.js`, `utils/aiContextGenerator.js`, `utils/profileContextBuilder.js`, `utils/chatContextBuilder.js` |
 | Repository | `routes/repository.js`, `utils/repositoryAggregator.js`, `utils/timelineBuilder.js`, `utils/longitudinalInsights.js`, `utils/doctorSummaryBuilder.js` |
 | File storage | `config/cloudinary.js`, `services/cloudinaryService.js` |
-| Demo | `scripts/seedDemoPatient.js`, `scripts/demoPatientData.js`, `scripts/qaStage31.mjs` |
+| Demo | `scripts/seedDemoPatient.js`, `scripts/demoPatientData.js`, `scripts/e2eEval.mjs`, `scripts/qaStage31.mjs` |
 | Frontend shell | `client/src/App.jsx`, `client/src/lib/api.js`, `client/src/pages/` |
 | Dashboard UI | `client/src/components/Dashboard/` |
 | Layout | `client/src/components/Layout/Navbar.jsx`, `Footer.jsx` |
@@ -226,7 +226,8 @@ Repository rollups are **computed on read** (no separate collection) via [`utils
 |------|---------|----------|
 | Unit tests | `npm test` | **221/221** passing |
 | Frontend build | `npm run build --prefix client` | Green |
-| API smoke | `node scripts/qaStage31.mjs` | P0: 0 (destructive — re-seed demo after) |
+| E2E eval | `npm run test:e2e` | Full stack: unit + client build + API (re-seeds demo) |
+| API smoke | `node scripts/qaStage31.mjs` | Legacy smoke (destructive — re-seed demo after) |
 
 Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biomarkerIntelligence.js`.
 
@@ -255,6 +256,7 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
+- **2026-06-12:** E2E eval runner (`npm run test:e2e`) — unit tests, client build, full API surface, demo re-seed.
 - **2026-06-12:** Groq/Gemini split — Groq (`llama-3.3-70b-versatile`) for entity extraction, lab interpret, chat, longitudinal AI; Gemini isolated to prescription Vision (`geminiVisionService.js`); `utils/aiHelpers.js` + JSON fence stripping; 221 tests.
 - **2026-06-12:** Dashboard excludes prescriptions from report switcher/calendar; auto `classifyDocumentType` fallback routes non-lab OCR to prescription; 216 tests.
 - **2026-06-12:** Upload pipeline latency — prescription UI hint short-circuits OCR; Cloudinary upload runs in parallel with extraction; PDF OCR fallback page buffers reused for Vision; `handleUpload` exported for route tests; 214 tests.

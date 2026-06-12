@@ -52,6 +52,25 @@ Login without `?reportId=` lands on the **Jun 5** report automatically.
 
 Use **Navbar → Upload** (`/dashboard?upload=1`) — works even when the user already has report history. Logged-in Landing hero CTA also routes to upload mode.
 
+## Automated evaluation test
+
+Run the full end-to-end check before evaluation:
+
+```bash
+npm run test:e2e
+```
+
+This runs **221 unit tests**, a **client production build**, re-seeds the demo patient, and exercises every API surface (auth, dashboard, repository, vault stats, upload, interpret, chat, doctor summary, error handling). Exit code `0` = eval-ready; `2` = warnings only (P1).
+
+Options:
+
+```bash
+npm run test:e2e -- --skip-unit          # API-only (server must be running)
+npm run test:e2e -- --skip-client-build  # Skip Vite build step
+npm run test:e2e -- --skip-ai            # Skip Groq interpret/chat calls
+npm run test:e2e -- --destructive        # Include delete + password-change tests
+```
+
 ## Post-seed API smoke
 
 ```bash

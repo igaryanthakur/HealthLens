@@ -137,14 +137,16 @@ See [PROJECT_CONTEXT.md](PROJECT_CONTEXT.md) for the full pipeline, API referenc
 
 ```bash
 npm test                    # 221 backend unit tests
+npm run test:e2e            # Full evaluation runner (unit + build + API)
 npm run build --prefix client
-node scripts/qaStage31.mjs  # API smoke (re-seed demo after — see docs/DEMO.md)
+node scripts/qaStage31.mjs  # Legacy API smoke (destructive — re-seed after)
 ```
 
 | Script | Description |
 |--------|-------------|
 | `npm run dev` | Backend + frontend concurrently |
 | `npm start` | Backend only |
+| `npm run test:e2e` | End-to-end eval check before demo |
 | `npm run seed:demo` | Seed demo patient (idempotent) |
 
 ---

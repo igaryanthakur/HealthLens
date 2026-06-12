@@ -211,7 +211,7 @@ async function main() {
 
   blocks.G = !findings.P0.some((f) => f.startsWith('G'));
 
-  // Block H: chat (if Gemini available)
+  // Block H: chat (if Groq available)
   const chat1 = await req('/api/chat', {
     method: 'POST',
     headers: { ...auth, 'Content-Type': 'application/json' },
@@ -222,8 +222,8 @@ async function main() {
     else fail('H', 'H1', 'Metformin not in reply', 'P1');
     blocks.H = true;
   } else if (chat1.status === 503) {
-    skip('H', 'H1', 'Gemini unavailable (503) — use fallback script');
-    skip('H', 'H2', 'Skipped due to Gemini');
+    skip('H', 'H1', 'Groq unavailable (503) — use fallback script');
+    skip('H', 'H2', 'Skipped due to Groq unavailability');
     blocks.H = 'skipped-fallback';
   } else {
     fail('H', 'H1', `Chat status ${chat1.status}`, 'P1');
