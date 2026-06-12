@@ -1,7 +1,7 @@
 import { useRef } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { useReactToPrint } from 'react-to-print'
-import { Download, Stethoscope, Upload } from 'lucide-react'
+import { Printer, Stethoscope, Upload } from 'lucide-react'
 import VitalitySnapshotCard from './VitalitySnapshotCard'
 import MiniCalendarCard from './MiniCalendarCard'
 import NeedsAttentionCard from './NeedsAttentionCard'
@@ -104,8 +104,8 @@ export default function Dashboard({
               onClick={() => handlePrint()}
               className="inline-flex items-center gap-2 bg-white border border-slate-200 text-slate-700 hover:text-teal-700 hover:border-teal-200 px-4 py-2.5 rounded-xl text-sm font-medium shadow-sm transition-colors"
             >
-              <Download size={16} />
-              Export Current Report
+              <Printer size={16} />
+              Print / Save PDF
             </button>
           </div>
         </div>

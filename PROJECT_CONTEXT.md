@@ -1,6 +1,6 @@
 # HealthLens AI — Project Context
 
-**Last Updated:** Wednesday, June 10, 2026 (Cloudinary delivery type fix)  
+**Last Updated:** Friday, June 12, 2026 (eval-prep dead UI cleanup)  
 **Status:** Eval-ready · **207/207** tests · freeze (bug fixes + docs only)
 
 > Contributor and agent reference. For onboarding, start with [README.md](README.md).
@@ -246,6 +246,7 @@ Frontend has no test harness; pure logic in `client/src/lib/trends.js` and `biom
 
 ## 12. Changelog (recent)
 
+- **2026-06-12:** Eval-prep dead UI cleanup — removed unwired Biometric/SSO blocks, forgot-password, and remember-me from Login/Register; wired auth footers to `/privacy`, `/terms`, `/contact`; removed dead Chat menu/attach and Vault Filter buttons; Landing honest CTA + copy; Dashboard print label fix; `NotFound` catch-all route; `MiniCalendarCard` non-event days as static spans. Client build green; 207 tests unchanged.
 - **2026-06-10:** Vercel 250MB fix — removed `api/.deps/` full-package staging; single-string `includeFiles` glob for untraced PDF/OCR/native assets (~8MB, not full packages).
 - **2026-06-10:** Vercel PDF upload fix — `utils/pdfParseLoader.js` + `includeFiles` for `pdf.worker.mjs`.
 - **2026-06-10:** Vercel entrypoint fix — removed `outputDirectory: public` from `vercel.json` (with `api/` present, that setting makes Vercel scan `public/` for Node entrypoints); `framework: null` + `rewrites` for SPA; dashboard Output Directory override must be cleared.

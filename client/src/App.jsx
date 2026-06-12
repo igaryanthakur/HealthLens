@@ -10,6 +10,7 @@ import Dashboard from './pages/Dashboard'
 import Profile from './pages/Profile'
 import Chat from './pages/Chat'
 import ContactSupport from './pages/ContactSupport'
+import NotFound from './pages/NotFound'
 import Careers from './pages/Careers'
 import HealthBlogIndex from './pages/HealthBlogIndex'
 import HealthBlog from './pages/HealthBlog'
@@ -124,6 +125,7 @@ function AppContent() {
             </ProtectedRoute>
           }
         />
+        <Route path="*" element={<NotFound />} />
       </Routes>
       {!hideGlobalFooter && <Footer />}
     </>

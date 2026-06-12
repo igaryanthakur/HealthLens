@@ -120,25 +120,12 @@ export default function Landing() {
                   className="bg-transparent text-primary border border-outline-variant font-label-md text-label-md px-lg py-md rounded-full hover:bg-surface-container-low transition-all duration-300 flex items-center justify-center gap-sm"
                 >
                   <PlayCircle />
-                  View Demo
+                  See How It Works
                 </a>
               </div>
-              <div className="flex items-center gap-sm mt-sm">
-                <div className="flex -space-x-2">
-                  <div className="w-8 h-8 rounded-full bg-surface-container-highest border-2 border-surface flex items-center justify-center text-xs font-bold text-on-surface-variant shadow-sm">
-                    JD
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-primary-container border-2 border-surface flex items-center justify-center text-xs font-bold text-on-primary-container shadow-sm">
-                    AM
-                  </div>
-                  <div className="w-8 h-8 rounded-full bg-tertiary-container border-2 border-surface flex items-center justify-center text-xs font-bold text-on-tertiary-container shadow-sm">
-                    SL
-                  </div>
-                </div>
-                <span className="font-body-sm text-body-sm text-on-surface-variant">
-                  Trusted by 10,000+ users
-                </span>
-              </div>
+              <p className="font-body-sm text-body-sm text-on-surface-variant mt-sm">
+                Built for patients and caregivers
+              </p>
             </div>
 
             <div

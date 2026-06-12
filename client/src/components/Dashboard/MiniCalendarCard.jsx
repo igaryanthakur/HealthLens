@@ -112,19 +112,28 @@ export default function MiniCalendarCard({ history = [], onSelectReport, classNa
           const hasEvent = eventsByDay.has(key)
           const isToday = sameDay(new Date(year, month, day), today)
 
+          if (!hasEvent && !isToday) {
+            return (
+              <span
+                key={i}
+                className="relative h-9 w-full rounded-full text-sm flex items-center justify-center text-slate-700"
+              >
+                {day}
+              </span>
+            )
+          }
+
           return (
             <button
               key={i}
               type="button"
               onClick={() => handleDayClick(day)}
-              disabled={!hasEvent}
               className={[
                 'relative h-9 w-full rounded-full text-sm flex items-center justify-center transition-colors',
                 isToday ? 'bg-teal-700 text-white font-semibold' : 'text-slate-700',
                 !isToday && hasEvent
                   ? 'ring-2 ring-teal-500 ring-inset font-semibold text-teal-800 hover:bg-teal-50 cursor-pointer'
                   : '',
-                !isToday && !hasEvent ? 'hover:bg-slate-50' : '',
               ].join(' ')}
               title={hasEvent ? 'Health record on this day' : undefined}
             >

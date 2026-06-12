@@ -2,8 +2,6 @@ import { useEffect, useRef, useState } from 'react'
 import {
   Brain,
   Loader2,
-  MoreVertical,
-  Paperclip,
   Send,
   Sparkles,
 } from 'lucide-react'
@@ -85,7 +83,7 @@ export default function Chat() {
 
   return (
     <div className="flex-1 flex flex-col max-w-3xl mx-auto w-full px-margin-mobile h-[calc(100vh-80px)]">
-      <div className="py-lg border-b border-outline-variant/30 flex items-center justify-between">
+      <div className="py-lg border-b border-outline-variant/30 flex items-center">
         <div className="flex items-center gap-md">
           <div className="w-10 h-10 rounded-full bg-primary-container flex items-center justify-center text-on-primary-container">
             <Brain size={24} />
@@ -102,9 +100,6 @@ export default function Chat() {
             </div>
           </div>
         </div>
-        <button type="button" className="text-outline">
-          <MoreVertical />
-        </button>
       </div>
 
       <div
@@ -164,12 +159,6 @@ export default function Chat() {
           onSubmit={handleSend}
           className="bg-white rounded-full p-2 pr-2 flex items-center shadow-ambient border border-outline-variant/20"
         >
-          <button
-            type="button"
-            className="w-10 h-10 flex items-center justify-center text-outline-variant hover:text-primary transition-colors"
-          >
-            <Paperclip />
-          </button>
           <input
             className="flex-1 border-none focus:ring-0 bg-transparent text-body-md font-body-md px-md text-on-surface placeholder-outline-variant"
             placeholder="Ask about your health history..."

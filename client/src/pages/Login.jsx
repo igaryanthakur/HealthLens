@@ -4,8 +4,6 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
-  Fingerprint,
-  Key,
   Loader2,
   Lock,
   Mail,
@@ -90,17 +88,9 @@ export default function Login() {
               </div>
 
               <div className="space-y-xs">
-                <div className="flex justify-between items-center px-1">
-                  <label className="font-label-md text-label-md text-on-surface" htmlFor="password">
-                    Password
-                  </label>
-                  <a
-                    className="font-label-sm text-label-sm text-primary hover:underline transition-all"
-                    href="#"
-                  >
-                    Forgot password?
-                  </a>
-                </div>
+                <label className="font-label-md text-label-md text-on-surface ml-1" htmlFor="password">
+                  Password
+                </label>
                 <div className="relative group">
                   <Lock className="absolute left-md top-1/2 -translate-y-1/2 text-outline group-focus-within:text-primary transition-colors" size={20} />
                   <input
@@ -124,20 +114,6 @@ export default function Login() {
                 </div>
               </div>
 
-              <div className="flex items-center gap-xs px-1">
-                <input
-                  className="w-4 h-4 rounded border-outline-variant text-primary focus:ring-primary cursor-pointer"
-                  id="remember"
-                  type="checkbox"
-                />
-                <label
-                  className="font-label-sm text-label-sm text-on-surface-variant cursor-pointer"
-                  htmlFor="remember"
-                >
-                  Keep me logged in for 30 days
-                </label>
-              </div>
-
               <button
                 className="w-full bg-primary hover:bg-primary-container text-white font-label-md text-label-md py-md rounded-xl shadow-md active:scale-[0.98] transition-all duration-200 flex items-center justify-center gap-xs disabled:opacity-60"
                 type="submit"
@@ -157,34 +133,6 @@ export default function Login() {
               </button>
             </form>
 
-            <div className="relative my-xl">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-outline-variant/50" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-surface-container-lowest px-md text-outline font-label-sm">
-                  OR SECURE LOGIN WITH
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-md">
-              <button
-                type="button"
-                className="flex items-center justify-center gap-xs py-sm border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors font-label-md text-label-md text-on-surface"
-              >
-                <Fingerprint size={18} />
-                Biometric
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-center gap-xs py-sm border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors font-label-md text-label-md text-on-surface"
-              >
-                <Key size={18} />
-                SSO
-              </button>
-            </div>
-
             <div className="mt-xl text-center">
               <p className="font-body-md text-body-md text-on-surface-variant">
                 Don&apos;t have an account?
@@ -199,17 +147,17 @@ export default function Login() {
           </div>
 
           <footer className="mt-lg flex justify-center gap-md text-outline font-label-sm text-label-sm">
-            <a className="hover:text-primary transition-colors" href="#">
+            <Link className="hover:text-primary transition-colors" to="/privacy">
               Privacy Policy
-            </a>
+            </Link>
             <span className="text-outline-variant">•</span>
-            <a className="hover:text-primary transition-colors" href="#">
+            <Link className="hover:text-primary transition-colors" to="/terms">
               Terms of Service
-            </a>
+            </Link>
             <span className="text-outline-variant">•</span>
-            <a className="hover:text-primary transition-colors" href="#">
+            <Link className="hover:text-primary transition-colors" to="/contact">
               Support
-            </a>
+            </Link>
           </footer>
         </div>
       </section>

@@ -9,7 +9,6 @@ import {
   ChevronRight,
   Download,
   FileText,
-  ListFilter,
   Loader2,
   Search,
   Stethoscope,
@@ -255,13 +254,6 @@ export default function Vault() {
             >
               <Stethoscope size={20} />
               Doctor Summary
-            </button>
-            <button
-              type="button"
-              className="flex-1 md:flex-none flex items-center justify-center gap-2 px-6 py-3 bg-white border border-outline-variant rounded-full text-on-surface-variant font-label-md hover:bg-surface-variant/30 transition-all"
-            >
-              <ListFilter size={20} />
-              Filter
             </button>
             <button
               type="button"

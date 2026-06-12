@@ -1,3 +1,4 @@
+import { Link } from 'react-router-dom'
 import { Mail, MapPin, Phone, Users } from 'lucide-react'
 import StaticPageLayout, { StaticSection } from '../components/Layout/StaticPageLayout'
 
@@ -76,9 +77,9 @@ export default function ContactSupport() {
           <p>
             <strong>Project team:</strong> HealthLens AI — academic / demonstration deployment.
             For evaluation demos, see{' '}
-            <a href="/login" className="text-teal-700 hover:underline">
+            <Link to="/login" className="text-teal-700 hover:underline">
               demo login
-            </a>{' '}
+            </Link>{' '}
             credentials in our repository documentation.
           </p>
         </div>

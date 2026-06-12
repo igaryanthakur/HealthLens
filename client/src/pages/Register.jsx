@@ -4,8 +4,6 @@ import {
   ArrowRight,
   Eye,
   EyeOff,
-  Fingerprint,
-  Key,
   Loader2,
   Lock,
   Mail,
@@ -158,34 +156,6 @@ export default function Register() {
               </button>
             </form>
 
-            <div className="relative my-xl">
-              <div className="absolute inset-0 flex items-center">
-                <div className="w-full border-t border-outline-variant/50" />
-              </div>
-              <div className="relative flex justify-center text-xs">
-                <span className="bg-surface-container-lowest px-md text-outline font-label-sm">
-                  OR SECURE LOGIN WITH
-                </span>
-              </div>
-            </div>
-
-            <div className="grid grid-cols-2 gap-md">
-              <button
-                type="button"
-                className="flex items-center justify-center gap-xs py-sm border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors font-label-md text-label-md text-on-surface"
-              >
-                <Fingerprint size={18} />
-                Biometric
-              </button>
-              <button
-                type="button"
-                className="flex items-center justify-center gap-xs py-sm border border-outline-variant rounded-xl hover:bg-surface-container-low transition-colors font-label-md text-label-md text-on-surface"
-              >
-                <Key size={18} />
-                SSO
-              </button>
-            </div>
-
             <div className="mt-xl text-center">
               <p className="font-body-md text-body-md text-on-surface-variant">
                 Already have an account?
@@ -200,17 +170,17 @@ export default function Register() {
           </div>
 
           <footer className="mt-lg flex justify-center gap-md text-outline font-label-sm text-label-sm">
-            <a className="hover:text-primary transition-colors" href="#">
+            <Link className="hover:text-primary transition-colors" to="/privacy">
               Privacy Policy
-            </a>
+            </Link>
             <span className="text-outline-variant">•</span>
-            <a className="hover:text-primary transition-colors" href="#">
+            <Link className="hover:text-primary transition-colors" to="/terms">
               Terms of Service
-            </a>
+            </Link>
             <span className="text-outline-variant">•</span>
-            <a className="hover:text-primary transition-colors" href="#">
+            <Link className="hover:text-primary transition-colors" to="/contact">
               Support
-            </a>
+            </Link>
           </footer>
         </div>
       </section>
