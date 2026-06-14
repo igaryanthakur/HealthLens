@@ -9,3 +9,4 @@ eng.traineddata
 *.traineddata
 .cursor/plans/
 npm-debug.log*
+TestData/
